@@ -19,7 +19,7 @@ Please set up "Mini Code" for me as an artifact.
 
 1. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout 902aa374b67df4e5fc8b3729f7764373aab06928
+   git -C mini-code-editor checkout v0.4.1
    If you cannot run shell commands or reach GitHub, tell me and stop.
 2. Read index.html and docs/claude-integration.md completely before you publish anything.
 3. Publish index.html without changes as a new artifact with the title "Mini Code".
@@ -41,6 +41,12 @@ First download https://github.com/canotir/mini-code-editor with git and read
 docs/claude-integration.md. Then look at my open comments.
 ```
 
-## Why the prompt uses a fixed commit
+## Why the prompt uses a release tag
 
-The `checkout` line selects one known version of `index.html`. Without it, `git clone` gets the newest version, which can contain changes that nobody examined. When a new version is released, update the commit hash in the prompt.
+The `checkout` line selects one released version. Without it, `git clone` gets the newest version, which can contain changes that nobody examined.
+
+Only the owner of the repository can create or move a tag. When you release a new version, do these steps:
+
+1. Change the tag in the prompts to the new version, for example `v0.4.2`.
+2. Commit the change.
+3. Create the release with this tag on the new commit.

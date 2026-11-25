@@ -2,14 +2,15 @@
 
 All dates are in ISO 8601 (UTC).
 
-## Unreleased
+## 0.4.1 – 2026-11-25
 
-### Added
-- Quick-start prompt for Claude in `README.md` and in `docs/quick-start-prompt.md`.
+### Changed
+- The quick-start prompts select the release tag (`v0.4.1`) instead of a commit hash.
 
 ## 0.4.0 – 2026-11-25
 
 ### Added
+- Quick-start prompt for Claude in `README.md` and in `docs/quick-start-prompt.md`.
 - Command palette (`Ctrl+Shift+P`, `⌘⇧P` or `F1`) with all commands and their shortcuts.
 - `Ctrl+K` and `⌘K` chords for new file, close tab, previous and next tab, comment, and comments panel.
 - `Ctrl+#` toggles a line comment on German keyboards.

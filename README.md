@@ -26,7 +26,7 @@ Please set up "Mini Code" for me as an artifact.
 
 1. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout 902aa374b67df4e5fc8b3729f7764373aab06928
+   git -C mini-code-editor checkout v0.4.1
    If you cannot run shell commands or reach GitHub, tell me and stop.
 2. Read index.html and docs/claude-integration.md completely before you publish anything.
 3. Publish index.html without changes as a new artifact with the title "Mini Code".
