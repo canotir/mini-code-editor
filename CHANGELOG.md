@@ -6,6 +6,8 @@ All dates are in ISO 8601 (UTC).
 
 ### Added
 - Screenshots in `README.md` and `docs/images/`.
+- Version number in the page (`<meta name="mini-code-version">`) and on the welcome screen.
+- Prompt to update an existing Mini Code artifact, in `README.md` and in `docs/quick-start-prompt.md`.
 
 ### Fixed
 - The status bar labels "Spaces", "UTF-8" and "LF" had too little contrast.

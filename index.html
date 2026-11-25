@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mini Code Editor</title>
+<meta name="mini-code-version" content="0.4.2">
 <!--
-  Mini Code Editor v2: a single-file code editor that runs in the browser.
+  Mini Code Editor: a single-file code editor that runs in the browser. The version is in the meta tag "mini-code-version".
   Files are stored in this artifact's project database, so Claude can read and write them.
   This content was generated with AI support (Claude, Anthropic) and subsequently
   checked and, where necessary, revised by a human. Examine it before use.
@@ -308,6 +309,7 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
       <div id="welcome">
         <div class="wbox">
           <h1>Mini Code</h1>
+          <p class="note" id="wVersion"></p>
           <p id="wIntro"></p>
           <div class="wbtns" id="wBtns"></div>
           <h2>Working with Claude</h2>
@@ -348,6 +350,8 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Release version, read from the meta tag so that one place holds it (update prompts read the same tag).
+const APP_VERSION = (document.querySelector('meta[name="mini-code-version"]') || {}).content || 'unknown';
 const IND = '  ';                       // indent unit: two spaces
 const PAD_T = 8;                        // top padding of the code layers, px
 const LOCAL_KEY = 'mini-code-v1';       // browser-only workspace (fallback mode, v1 format)
@@ -2086,6 +2090,7 @@ const ro = new ResizeObserver(() => { measure(); sync(); placePill(); });
 ro.observe(code);
 
 applyKeyLabels();
+$('#wVersion').textContent = 'Version ' + APP_VERSION;
 measure(); renderSide(); render(); renderComments();
 start();
 }

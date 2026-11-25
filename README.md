@@ -53,6 +53,27 @@ When I later ask you to read or change files or comments in Mini Code,
 follow docs/claude-integration.md.
 ```
 
+### Update Mini Code
+
+To update an existing Mini Code artifact, copy this prompt into a new chat. Replace `<link>` with the link to your artifact. Your files and comments stay in the project database. The welcome screen shows the installed version.
+
+```text
+Please update my Mini Code artifact to version v0.4.2: <link>
+
+1. Read my artifact and find its version in the tag
+   <meta name="mini-code-version">. If the tag is missing, the version is older than 0.4.2.
+2. Download the new version into your workspace with the shell:
+   git clone https://github.com/canotir/mini-code-editor
+   git -C mini-code-editor checkout v0.4.2
+   If you cannot run shell commands or reach GitHub, tell me and stop.
+3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
+   If the data model or the capabilities changed, tell me and wait for my approval.
+4. Read index.html completely. Then publish it without changes to my existing artifact
+   (same link). Do not create a new artifact.
+5. Keep the declared capabilities. Do not change or delete data in the project database.
+6. Tell me the old and the new version.
+```
+
 ## Setup
 
 Mini Code has no dependencies and no build step.
