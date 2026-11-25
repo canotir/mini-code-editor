@@ -1,0 +1,2094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Code Editor</title>
+<!--
+  Mini Code Editor v2: a single-file code editor that runs in the browser.
+  Files are stored in this artifact's project database, so Claude can read and write them.
+  This content was generated with AI support (Claude, Anthropic) and subsequently
+  checked and, where necessary, revised by a human. Examine it before use.
+  License: MIT. The page uses no external code, fonts or images.
+-->
+<style>
+/* VOICE: a quiet, dense work tool; the code is the loudest thing on screen.
+   IDEA: a desktop code editor (activity bar, explorer, search, tabs, comments, status bar).
+   PICTURE: the editor itself, open mid-use on a project.
+   COLOUR and TYPE: neutral greys, one blue accent; system UI font, system monospace for code.
+   LAYOUT: fixed full-window grid; on phones the side panels slide over the editor. */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#1e1f22);--side:light-dark(#f3f3f5,#18191c);--bar:light-dark(#e8e8eb,#131417);
+--tabs:light-dark(#ececef,#18191c);--tab-on:light-dark(#ffffff,#1e1f22);--line:light-dark(#d9d9de,#2c2e33);
+--ink:light-dark(#1f2328,#d5d7db);--dim:light-dark(#646a73,#8b909a);--hover:light-dark(#e1e2e6,#272a2f);
+--sel:light-dark(#d6e7ff,#22374f);--selx:light-dark(rgba(10,110,209,.24),rgba(78,161,255,.30));
+--accent:light-dark(#0a6ed1,#4ea1ff);--cur:light-dark(#f4f6f9,#24262b);--status:light-dark(#0a6ed1,#1d5aa0);
+--mod:light-dark(#9a6200,#e2c08d);--find:light-dark(rgba(234,179,8,.38),rgba(234,179,8,.28));--findcur:light-dark(rgba(234,120,8,.5),rgba(234,150,8,.55));
+--warn:light-dark(#fff4d6,#3a2f12);--err:light-dark(#c62828,#ff8a80);
+--t-kw:light-dark(#a626a4,#c792ea);--t-str:light-dark(#2f7d32,#a5d6a7);--t-num:light-dark(#b35c00,#f6b26b);
+--t-com:light-dark(#7b818b,#6f7782);--t-fn:light-dark(#0a58ca,#82aaff);--t-tag:light-dark(#c62828,#f28b82);
+--t-attr:light-dark(#9a5b00,#ffcb6b);--t-pre:light-dark(#00838f,#80cbc4);
+--cmt:light-dark(rgba(10,110,209,.10),rgba(78,161,255,.15));--add:light-dark(rgba(40,170,80,.18),rgba(40,170,80,.22));--del:light-dark(rgba(220,50,50,.16),rgba(220,50,50,.22));
+--mono:ui-monospace,"Cascadia Code","JetBrains Mono","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;--sw:260px;--cw:340px}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;display:grid;grid-template-rows:minmax(0,1fr) 24px;height:100dvh}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;border-radius:4px;padding:0}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,textarea:focus-visible,#tree:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 8px}
+input:focus{border-color:var(--accent);outline:none}
+.grow{flex:1}
+#app{display:grid;grid-template-columns:48px var(--sw) 4px minmax(0,1fr) 0;min-height:0;position:relative}
+#app.noside{grid-template-columns:48px 0 0 minmax(0,1fr) 0}#app.noside #side,#app.noside #resizer{display:none}
+#app.chat{grid-template-columns:48px var(--sw) 4px minmax(0,1fr) var(--cw)}
+#app.chat.noside{grid-template-columns:48px 0 0 minmax(0,1fr) var(--cw)}
+#app:not(.chat) #chat{display:none}
+#act{grid-column:1;grid-row:1}#side{grid-column:2;grid-row:1}#resizer{grid-column:3;grid-row:1}#app>main{grid-column:4;grid-row:1}#chat{grid-column:5;grid-row:1}
+#act{background:var(--bar);display:flex;flex-direction:column;align-items:center;padding:4px 0;border-right:1px solid var(--line)}
+#act button{width:44px;height:44px;display:grid;place-items:center;color:var(--dim);position:relative}
+#act button:hover,#act button.on{color:var(--ink)}
+#act button.on::before{content:"";position:absolute;left:-2px;top:8px;bottom:8px;width:2px;background:var(--accent)}
+#act .dot::after{content:"";position:absolute;right:9px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+#side{background:var(--side);display:flex;flex-direction:column;min-height:0}
+.panel{display:flex;flex-direction:column;min-height:0;flex:1}
+.sidehead{display:flex;align-items:center;height:36px;padding:0 6px 0 16px;font-weight:600;color:var(--dim);flex:none}
+.sidehead span{flex:1}
+.tools{display:flex}
+.tools button{width:28px;height:28px;display:grid;place-items:center;color:var(--dim)}
+.tools button:hover{background:var(--hover);color:var(--ink)}
+#tree{flex:1;overflow:auto;padding:2px 0 32px;outline:none}
+#tree.drop{background:var(--sel)}
+.row{display:flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 calc(8px + var(--d)*14px);cursor:pointer;white-space:nowrap;user-select:none}
+.row:hover{background:var(--hover)}.row.act{background:var(--sel)}
+#tree:focus .row.sel{outline:1px solid var(--accent);outline-offset:-1px}
+.row .nm{overflow:hidden;text-overflow:ellipsis}.row.dirty .nm{color:var(--mod)}
+.row.inp input{flex:1;height:22px;border-radius:2px;padding:0 4px;border-color:var(--accent)}
+.chev,.sp{width:16px;flex:none;display:grid;place-items:center;color:var(--dim)}
+.chev svg{transition:transform .12s}.chev.open svg{transform:rotate(90deg)}
+.fi{display:grid;place-items:center;flex:none}.fold{color:var(--dim)}
+.empty{color:var(--dim);padding:12px 16px;margin:0}
+.empty .btn{margin-top:10px;display:block}
+.sform{display:flex;gap:2px;padding:2px 12px 8px 4px;flex:none}
+.stoggle{width:20px;height:30px;display:grid;place-items:center;color:var(--dim);flex:none}
+.stoggle svg{transition:transform .12s}.stoggle[aria-expanded=true] svg{transform:rotate(90deg)}
+.sfields{flex:1;display:grid;gap:6px}
+.sbox{display:flex;align-items:center;gap:1px;border:1px solid var(--line);border-radius:4px;background:var(--bg);padding-right:3px}
+.sbox:focus-within{border-color:var(--accent)}
+.sbox input{flex:1;border:0;height:28px;background:transparent;padding:0 6px}
+.opt{min-width:24px;height:22px;display:grid;place-items:center;color:var(--dim);padding:0 3px}
+.opt:hover{background:var(--hover);color:var(--ink)}
+.opt[aria-pressed=true]{background:var(--sel);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.slabel{display:grid;gap:3px;color:var(--dim)}.slabel input{height:28px}
+.ssum{padding:0 16px 6px;color:var(--dim);flex:none}.ssum.err{color:var(--err)}
+.sres{flex:1;overflow:auto;padding-bottom:24px}
+.sfile,.smatch{display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;user-select:none}
+.sfile{height:24px;padding:0 8px 0 6px}.sfile .dir{color:var(--dim);overflow:hidden;text-overflow:ellipsis;flex:1}
+.smatch{height:22px;padding:0 8px 0 40px}.smatch .pv{overflow:hidden;text-overflow:ellipsis;flex:1}
+.sfile:hover,.smatch:hover{background:var(--hover)}
+.badge{background:var(--hover);border-radius:10px;padding:0 7px;color:var(--dim)}
+.pv mark{background:var(--find);color:inherit;border-radius:2px}
+.pv del{background:var(--del);color:inherit}.pv ins{background:var(--add);color:inherit;text-decoration:none}
+.hov{display:none;width:22px;height:22px;place-items:center;color:var(--dim)}
+.sfile:hover .hov,.smatch:hover .hov{display:grid}.hov:hover{background:var(--line);color:var(--ink)}
+#resizer{cursor:col-resize;background:var(--side);border-right:1px solid var(--line);touch-action:none}
+#resizer:hover{background:var(--accent)}
+main{display:flex;flex-direction:column;min-height:0;background:var(--bg)}
+#tabs{display:flex;height:36px;background:var(--tabs);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;flex:none}
+.tab{display:flex;align-items:center;gap:6px;padding:0 6px 0 12px;height:36px;border-right:1px solid var(--line);color:var(--dim);cursor:pointer;white-space:nowrap;flex:none;position:relative;user-select:none}
+.tab.on{background:var(--tab-on);color:var(--ink)}
+.tab.on::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--accent)}
+.tab .hint{color:var(--dim)}
+.tab .x{width:22px;height:22px;display:grid;place-items:center;opacity:0}
+.tab:hover .x,.tab.on .x,.tab.dirty .x{opacity:1}.tab .x:hover{background:var(--hover)}
+.tab.dirty .x svg{display:none}.tab.dirty .x::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.tab.dirty .x:hover svg{display:block}.tab.dirty .x:hover::before{display:none}
+.tab.conf .nm{color:var(--err)}
+.tab.over{box-shadow:inset 2px 0 var(--accent)}
+#crumbs{display:flex;align-items:center;gap:2px;height:30px;padding:0 6px 0 16px;color:var(--dim);flex:none;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
+#crumbs .last{color:var(--ink)}#crumbs .sepc{display:grid;place-items:center}
+#crumbs button{height:26px;padding:0 8px;display:flex;align-items:center;gap:5px;color:var(--dim)}
+#crumbs button:hover{background:var(--hover);color:var(--ink)}
+#conflict{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 12px;background:var(--warn);border-bottom:1px solid var(--line);flex:none}
+#conflict span{flex:1 1 240px}
+#conflict button{height:28px;padding:0 10px;border:1px solid var(--line);background:var(--bg)}
+#conflict button:hover{background:var(--hover)}
+.stage{position:relative;flex:1;min-height:0}
+#code{position:absolute;inset:0;overflow:hidden;font:14px/20px var(--mono);font-variant-ligatures:none;tab-size:4;--gw:5ch}
+#gutter{position:absolute;left:0;top:0;bottom:0;width:var(--gw);overflow:hidden;z-index:1;color:var(--dim);text-align:right;pointer-events:none}
+#gnums{white-space:pre;padding:8px 1.5ch 0 0;will-change:transform}
+#curline{position:absolute;left:0;right:0;top:8px;height:20px;background:var(--cur);pointer-events:none}
+.layer,.ta{position:absolute;top:0;left:var(--gw);margin:0;padding:8px 48px 50vh 8px;font:inherit;white-space:pre;tab-size:inherit;font-variant-ligatures:none}
+#clip{position:absolute;top:0;bottom:0;left:var(--gw);right:0;overflow:hidden;pointer-events:none}
+#clip .layer{left:0}
+.layer{pointer-events:none;will-change:transform}
+#marks{color:transparent;z-index:1}#marks mark{background:var(--find);color:transparent;border-radius:2px}
+#marks mark.cur{background:var(--findcur)}
+#hl{z-index:2;color:var(--ink)}
+.ta{bottom:0;right:0;width:auto;border:0;outline:none;resize:none;background:transparent;color:transparent;caret-color:var(--ink);overflow:auto;z-index:3;visibility:hidden}
+.ta.on{visibility:visible}.ta:focus-visible{outline:none}.ta::selection{background:var(--selx);color:transparent}
+#askPill{position:absolute;z-index:6;height:26px;padding:0 10px;display:flex;align-items:center;gap:5px;background:var(--status);color:#fff;border-radius:13px;box-shadow:0 3px 10px rgba(0,0,0,.25);font-size:13px;white-space:nowrap}
+.t-kw{color:var(--t-kw)}.t-str{color:var(--t-str)}.t-num{color:var(--t-num)}.t-com{color:var(--t-com)}
+.t-fn{color:var(--t-fn)}.t-tag{color:var(--t-tag)}.t-attr{color:var(--t-attr)}.t-pre{color:var(--t-pre)}
+#find{position:absolute;top:6px;right:24px;z-index:10;display:grid;gap:4px;background:var(--side);border:1px solid var(--line);border-radius:6px;padding:6px;box-shadow:0 6px 20px rgba(0,0,0,.18);max-width:calc(100% - 32px)}
+.frow{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+#find .sbox{width:250px}
+#find button:not(.opt){height:28px;min-width:28px;display:grid;place-items:center;padding:0 6px;color:var(--dim)}
+#find button:not(.opt):hover{background:var(--hover);color:var(--ink)}
+#fCount{min-width:76px;color:var(--dim);padding:0 4px}#fCount.err{color:var(--err)}
+#welcome{position:absolute;inset:0;overflow:auto;display:grid;place-items:center;padding:24px}
+.wbox{max-width:580px;width:100%}
+.wbox h1{font-size:40px;line-height:1.05;margin:0 0 8px;font-weight:650;letter-spacing:-.01em}
+.wbox>p{color:var(--dim);font-size:16px;margin:0 0 20px;max-width:62ch}
+.wbox h2{font-size:16px;margin:28px 0 8px}
+.wbox ul{margin:0;padding-left:20px;color:var(--dim);font-size:14px}.wbox li{margin:4px 0}
+.wbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
+.btn{height:36px;padding:0 16px;border:1px solid var(--line);background:var(--side);font-size:14px}
+.btn:hover{background:var(--hover)}.btn.primary{background:var(--status);border-color:var(--status);color:#fff}
+.btn.danger{background:#c62828;border-color:#c62828;color:#fff}
+.keys{border-collapse:collapse;width:100%;font-size:14px}
+.keys td{padding:5px 0;border-bottom:1px solid var(--line)}.keys td:last-child{text-align:right;white-space:nowrap}
+kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.note{color:var(--dim);margin-top:16px}
+#chat{background:var(--side);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.cfilter{display:flex;gap:4px;padding:0 12px 8px;flex:none;flex-wrap:wrap}
+.cfilter button{height:28px;padding:0 10px;border-radius:14px;color:var(--dim);border:1px solid var(--line)}
+.cfilter button[aria-pressed=true]{background:var(--sel);color:var(--ink);border-color:var(--accent)}
+#clist{flex:1;overflow:auto;padding:0 10px 16px}
+.cfile{display:flex;align-items:center;gap:6px;margin:10px 4px 6px;color:var(--dim);font-weight:600;white-space:nowrap;overflow:hidden}
+.cfile span{overflow:hidden;text-overflow:ellipsis}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.card.flash{box-shadow:0 0 0 2px var(--accent)}.card.res{opacity:.72}
+.chead{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--dim);cursor:pointer;flex-wrap:wrap}
+.chead b{color:var(--ink)}.chead .grow{min-width:8px}
+.tag{display:inline-block;font-size:13px;padding:0 6px;border-radius:8px;background:var(--warn);color:var(--ink);margin-top:4px}
+.quote{margin:6px 0;padding:2px 8px;border-left:2px solid var(--line);font:13px/1.45 var(--mono);white-space:pre-wrap;color:var(--dim);max-height:6.6em;overflow:hidden;cursor:pointer}
+.ctext p{margin:0 0 6px}.ctext p:last-child{margin:0}
+.ctext code{font:13px var(--mono);background:var(--hover);padding:0 4px;border-radius:3px}
+.ctext pre{position:relative;margin:6px 0;background:var(--bar);border:1px solid var(--line);border-radius:6px;padding:8px 10px;overflow:auto;font:13px/1.45 var(--mono);white-space:pre}
+.ctext pre code{background:none;padding:0}
+.ctext pre button{position:absolute;top:4px;right:4px;height:24px;padding:0 8px;background:var(--side);border:1px solid var(--line);font-size:13px}
+.reply{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.reply .who{font-size:13px;color:var(--dim)}.reply.claude .who{color:var(--accent)}
+.cacts{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px}
+.cacts button{height:28px;padding:0 8px;color:var(--dim);font-size:13px}
+.cacts button:hover{background:var(--hover);color:var(--ink)}
+.cedit{display:grid;gap:6px;margin-top:6px}
+.cedit textarea,#cbox textarea{width:100%;min-height:64px;max-height:40vh;resize:vertical;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+.cedit textarea:focus,#cbox textarea:focus{border-color:var(--accent);outline:none}
+.crow{display:flex;justify-content:flex-end;gap:6px}.crow .btn{height:30px;padding:0 12px;font-size:13px}
+#cbox{position:absolute;z-index:7;width:min(380px,calc(100% - 16px));background:var(--side);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:8px;display:grid;gap:6px;font:14px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#cbox .lbl{color:var(--dim);font-size:13px}
+#cmk{position:absolute;left:0;top:0;width:var(--gw);will-change:transform;z-index:4;pointer-events:none}
+#cmk button{position:absolute;left:1px;width:18px;display:grid;place-items:center;color:var(--accent);pointer-events:auto}
+#chl{color:transparent;z-index:0}#chl span{background:var(--cmt);border-radius:2px}
+#act .cnt{position:absolute;right:3px;bottom:5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--accent);color:#fff;font-size:13px;line-height:18px;text-align:center}
+.row.dropt{background:var(--sel);box-shadow:inset 0 0 0 1px var(--accent)}
+#status{display:flex;align-items:center;background:var(--status);color:#fff;padding:0 6px;overflow:hidden;white-space:nowrap}
+#status>*{padding:0 8px;flex:none}#status .grow{flex:1;padding:0}
+#status button{color:#fff;height:24px;border-radius:0}#status button:hover{background:rgba(255,255,255,.15)}
+#menu{position:fixed;z-index:40;min-width:210px;background:var(--side);border:1px solid var(--line);border-radius:6px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#menu button{display:flex;width:100%;justify-content:space-between;gap:24px;padding:0 10px;height:30px;align-items:center}
+#menu button:hover,#menu button:focus{background:var(--accent);color:#fff;outline:none}
+#menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}#menu kbd{background:none;border:0;opacity:.75}
+#qo{position:fixed;inset:0;z-index:45}
+.qbox{position:absolute;top:48px;left:50%;transform:translateX(-50%);width:min(580px,94vw);background:var(--side);border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.3);padding:6px}
+#qoIn{width:100%;height:34px;font-size:14px}
+#qoList{list-style:none;margin:4px 0 0;padding:0;max-height:50vh;overflow:auto}
+#qoList li{padding:6px 10px;border-radius:4px;cursor:pointer;display:flex;gap:8px;align-items:center;white-space:nowrap}
+#qoList li span{color:var(--dim);overflow:hidden;text-overflow:ellipsis}#qoList li.on{background:var(--sel)}
+#md{position:fixed;inset:0;background:rgba(0,0,0,.38);display:grid;place-items:center;z-index:50;padding:16px}
+#md .box{background:var(--side);border:1px solid var(--line);border-radius:8px;padding:20px;width:min(440px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#md .box.wide{width:min(920px,100%)}
+#md h2{font-size:16px;margin:0 0 8px}#md p{margin:0 0 14px;color:var(--dim);font-size:14px}
+#md .btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.diff{flex:1;min-height:0;overflow:auto;margin:0;font:13px/1.45 var(--mono);border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.diff div{white-space:pre;padding:0 10px}.diff .a{background:var(--add)}.diff .d{background:var(--del)}.diff .f{color:var(--dim);background:var(--side)}
+#toasts{position:fixed;right:12px;bottom:34px;display:flex;flex-direction:column;gap:6px;z-index:60;pointer-events:none}
+.toast{background:var(--side);border:1px solid var(--line);padding:8px 12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.2);max-width:min(380px,90vw);font-size:13px}
+.toast.err{border-color:var(--err)}
+@media (prefers-reduced-motion:reduce){.chev svg,.stoggle svg{transition:none}#chatState.work i{animation:none}}
+@media (max-width:760px){
+ #app,#app.noside,#app.chat,#app.chat.noside{grid-template-columns:48px 0 0 minmax(0,1fr) 0}
+ #side{position:absolute;left:48px;top:0;bottom:0;width:min(82vw,320px);z-index:20;box-shadow:8px 0 24px rgba(0,0,0,.3)}
+ #chat{position:absolute;right:0;top:0;bottom:0;width:min(92vw,380px);z-index:21;box-shadow:-8px 0 24px rgba(0,0,0,.3)}
+ #resizer,#status .opt{display:none}
+}
+@media (max-width:600px){
+ #code{font-size:16px;line-height:22px}#curline{height:22px}
+ input,#qoIn,.cedit textarea,#cbox textarea{font-size:16px}#find .sbox{width:190px}
+ .tools button{width:36px;height:36px}.row{height:32px}
+ .wbox h1{font-size:32px}
+ .keys td:last-child{white-space:normal}.keys td{vertical-align:top}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="act" aria-label="Activity bar">
+    <button id="btnExplorer" data-t="Explorer" data-k="sidebar" aria-label="Explorer" data-ic="files" data-s="24"></button>
+    <button id="btnSearch" data-t="Search" data-k="searchFiles" aria-label="Search" data-ic="search" data-s="24"></button>
+    <button id="btnChat" data-t="Comments" data-k="comments" aria-label="Comments" data-ic="chat" data-s="24"></button>
+    <span class="grow"></span>
+    <button id="btnReset" title="Reset sample workspace" aria-label="Reset sample workspace" data-ic="reset" data-s="22" hidden></button>
+  </nav>
+  <aside id="side">
+    <section id="pExplorer" class="panel" aria-label="Explorer">
+      <div class="sidehead"><span>Explorer</span>
+        <div class="tools">
+          <button id="tNewFile" data-t="New file" data-k="newFile" aria-label="New file" data-ic="newFile"></button>
+          <button id="tNewDir" title="New folder" aria-label="New folder" data-ic="newDir"></button>
+          <button id="tImport" title="Import files or a folder" aria-label="Import" data-ic="imp"></button>
+          <button id="tCollapse" title="Collapse all folders" aria-label="Collapse all folders" data-ic="collapse"></button>
+        </div>
+      </div>
+      <div id="tree" tabindex="0" role="tree" aria-label="Files"></div>
+    </section>
+    <section id="pSearch" class="panel" aria-label="Search" hidden>
+      <div class="sidehead"><span>Search</span>
+        <div class="tools">
+          <button id="sRefresh" title="Refresh" aria-label="Refresh results" data-ic="reset"></button>
+          <button id="sClear" title="Clear search results" aria-label="Clear search results" data-ic="clear"></button>
+          <button id="sCollapse" title="Collapse all" aria-label="Collapse all results" data-ic="collapse"></button>
+        </div>
+      </div>
+      <div class="sform">
+        <button id="sToggle" class="stoggle" aria-expanded="false" title="Toggle replace" aria-label="Toggle replace" data-ic="chev"></button>
+        <div class="sfields">
+          <div class="sbox"><input id="sIn" placeholder="Search" aria-label="Search" spellcheck="false" autocomplete="off">
+            <button class="opt" id="sCase" aria-pressed="false" title="Match case">Aa</button>
+            <button class="opt" id="sWord" aria-pressed="false" title="Match whole word"><u>ab</u></button>
+            <button class="opt" id="sRe" aria-pressed="false" title="Use regular expression">.*</button></div>
+          <div class="sbox" id="sRepRow" hidden><input id="sRep" placeholder="Replace" aria-label="Replace" spellcheck="false" autocomplete="off">
+            <button class="opt" id="sRepAll" data-t="Replace all" data-k="replaceAll" aria-label="Replace all" data-ic="repAll"></button></div>
+          <label class="slabel">files to include<input id="sInc" placeholder="e.g. src/**/*.cpp" spellcheck="false" autocomplete="off"></label>
+          <label class="slabel">files to exclude<input id="sExc" placeholder="e.g. *.md, tools/" spellcheck="false" autocomplete="off"></label>
+        </div>
+      </div>
+      <div id="sSummary" class="ssum" aria-live="polite"></div>
+      <div id="sResults" class="sres"></div>
+    </section>
+    <input type="file" id="importFiles" multiple hidden>
+    <input type="file" id="importDir" webkitdirectory multiple hidden>
+  </aside>
+  <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
+  <main>
+    <div id="tabs" role="tablist" aria-label="Open files"></div>
+    <div id="crumbs"></div>
+    <div id="conflict" hidden role="alert"><span id="cMsg"></span>
+      <button data-c="theirs" id="cTheirs">Load their version</button><button data-c="mine" id="cMine">Keep mine</button><button data-c="compare">Compare</button></div>
+    <div class="stage" id="stage">
+      <div id="code" hidden>
+        <div id="curline"></div>
+        <div id="cmk"></div>
+        <div id="gutter"><div id="gnums"></div></div>
+        <div id="clip"><pre id="chl" class="layer" aria-hidden="true"></pre><pre id="marks" class="layer" aria-hidden="true"></pre><pre id="hl" class="layer" aria-hidden="true"></pre></div>
+        <button id="askPill" hidden data-t="Comment on the selection" data-k="addComment"></button>
+        <div id="cbox" hidden role="dialog" aria-label="New comment"></div>
+      </div>
+      <div id="find" hidden role="search">
+        <div class="frow">
+          <div class="sbox"><input id="fIn" placeholder="Find" aria-label="Find" spellcheck="false" autocomplete="off">
+            <button class="opt" id="fCase" aria-pressed="false" title="Match case">Aa</button>
+            <button class="opt" id="fWord" aria-pressed="false" title="Match whole word"><u>ab</u></button>
+            <button class="opt" id="fRe" aria-pressed="false" title="Use regular expression">.*</button></div>
+          <span id="fCount" aria-live="polite"></span>
+          <button id="fPrev" title="Previous match (Shift+Enter)" aria-label="Previous match" data-ic="up"></button>
+          <button id="fNext" title="Next match (Enter)" aria-label="Next match" data-ic="down"></button>
+          <button id="fClose" title="Close (Escape)" aria-label="Close find" data-ic="x"></button>
+        </div>
+        <div class="frow">
+          <div class="sbox"><input id="rIn" placeholder="Replace" aria-label="Replace" spellcheck="false" autocomplete="off"></div>
+          <button id="rOne" title="Replace (Enter in Replace field)">Replace</button>
+          <button id="rAll" title="Replace all in this file">Replace all</button>
+        </div>
+      </div>
+      <div id="welcome">
+        <div class="wbox">
+          <h1>Mini Code</h1>
+          <p id="wIntro"></p>
+          <div class="wbtns" id="wBtns"></div>
+          <h2>Working with Claude</h2>
+          <ul>
+            <li>Claude reads and writes the files in this project. Its changes appear here live.</li>
+            <li>To mark a spot for Claude, select text and press <span data-kl="addComment"></span> or the Comment button. Each comment gets a number such as #3.</li>
+            <li>Then talk to Claude in the main conversation, for example “look at my comments” or “see #3”. Claude replies on the comment and resolves it when it is done.</li>
+            <li>If Claude changes a file while you have unsaved edits, a bar lets you load its version, keep yours, or compare both.</li>
+          </ul>
+          <h2>Keyboard</h2>
+          <p>Press <span data-kl="palette"></span> or <kbd>F1</kbd> to see all commands.</p>
+          <table class="keys" id="wKeys"></table>
+          <p class="note" id="wNote"></p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <aside id="chat" aria-label="Comments">
+    <div class="sidehead"><span>Comments</span>
+      <div class="tools"><button id="chClose" data-t="Close comments" data-k="comments" aria-label="Close comments" data-ic="x"></button></div>
+    </div>
+    <div class="cfilter" role="group" aria-label="Show comments"><button data-f="open" aria-pressed="true">Open</button><button data-f="resolved" aria-pressed="false">Resolved</button><button data-f="all" aria-pressed="false">All</button></div>
+    <div id="clist"></div>
+  </aside>
+</div>
+<footer id="status"></footer>
+<div id="menu" hidden role="menu"></div>
+<div id="qo" hidden>
+  <div class="qbox" role="dialog" aria-label="Go to file">
+    <input id="qoIn" placeholder="Search files by name. Type : for a line number or > for commands." autocomplete="off" spellcheck="false">
+    <ul id="qoList" role="listbox"></ul>
+  </div>
+</div>
+<div id="md" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+<script>
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const IND = '  ';                       // indent unit: two spaces
+const PAD_T = 8;                        // top padding of the code layers, px
+const LOCAL_KEY = 'mini-code-v1';       // browser-only workspace (fallback mode, v1 format)
+const UI_KEY = 'mini-code-ui-v2';       // per-viewer view state: tabs, unsaved buffers, panel sizes
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+const MAX_IMPORT_FILES = 2000;
+const MAX_HL_CHARS = 300000;            // above this size, skip syntax colors
+const MAX_MATCHES = 5000;               // in-file find
+const MAX_SEARCH_RESULTS = 20000;       // project search, like VS Code's default limit
+const MAX_RENDERED_MATCHES = 3000;      // result rows drawn in the Search panel
+const MAX_DOC_CHARS = 200000;           // keeps one file record under the store's 256 KiB document limit
+const MAX_ID_BYTES = 200;               // store limit for one path segment
+const MAX_COMMENT_CHARS = 20000;
+const MAX_QUOTE_CHARS = 20000;
+const MAX_COMMENTS = 1000;
+const DRAG_EXPAND_MS = 600;             // hover time before a collapsed folder opens during a drag
+const LOAD_TIMEOUT_MS = 10000;
+const CONNECT_WAIT_MS = 1500;           // wait for the artifact runtime to appear
+
+const app=$('#app'), tree=$('#tree'), tabsEl=$('#tabs'), crumbs=$('#crumbs'), code=$('#code'), hl=$('#hl'), marks=$('#marks'),
+  gnums=$('#gnums'), curline=$('#curline'), welcome=$('#welcome'), statusEl=$('#status'), menu=$('#menu'), qo=$('#qo'),
+  qoIn=$('#qoIn'), qoList=$('#qoList'), md=$('#md'), find=$('#find'), fIn=$('#fIn'), rIn=$('#rIn'), fCount=$('#fCount'),
+  toasts=$('#toasts'), importFiles=$('#importFiles'), importDir=$('#importDir'), stage=$('#stage'), conflictEl=$('#conflict'),
+  sIn=$('#sIn'), sRep=$('#sRep'), sInc=$('#sInc'), sExc=$('#sExc'), sSummary=$('#sSummary'), sResults=$('#sResults'),
+  clist=$('#clist'), cbox=$('#cbox'), cmk=$('#cmk'), chl=$('#chl'), askPill=$('#askPill');
+
+/* ---------- icons ---------- */
+const SVG = {
+  files:'<path d="M5.5 2.5h4.5l3 3v7.5h-7.5z"/><path d="M10 2.5v3h3"/><path d="M3 5v9.5h7.5"/>',
+  search:'<circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2 14 14"/>',
+  chat:'<path d="M2.5 3.5h11v7.5h-6l-3 2.5V11h-2z"/><path d="M5 6.5h6M5 8.5h4"/>',
+  cmt:'<path d="M2.5 3h11v8h-6l-3 2.5V11h-2z"/>',
+  reset:'<path d="M3 8a5 5 0 1 0 1.5-3.6"/><path d="M3 2.3v2.9h2.9"/>',
+  clear:'<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/>',
+  newFile:'<path d="M9 1.5H4v13h5"/><path d="M9 1.5l3 3v4"/><path d="M9 1.5v3h3"/><path d="M12 10.5v4M10 12.5h4"/>',
+  newDir:'<path d="M8.5 13H1.5V3h4.5l1.5 1.5h7v4"/><path d="M12 10v4.5M9.8 12.2h4.5"/>',
+  imp:'<path d="M8 10.5V2M4.8 5.2 8 2l3.2 3.2"/><path d="M2.5 10v3.5h11V10"/>',
+  collapse:'<rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M5 8h6"/>',
+  chev:'<path d="M6 4l4 4-4 4"/>',
+  x:'<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+  folder:'<path d="M1.5 3.5h4.5l1.5 1.5h7v7.5h-13z"/>',
+  file:'<path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M9.5 1.5v3h3"/>',
+  copy:'<rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V2.5H2.5V11H5"/>',
+  save:'<path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5V6h5V2.5M5 13.5v-4h6v4"/>',
+  up:'<path d="M8 13V3M4 7l4-4 4 4"/>', down:'<path d="M8 3v10M4 9l4 4 4-4"/>',
+  rep:'<path d="M2.5 5.5h8l-2-2M13.5 10.5h-8l2 2"/>',
+  repAll:'<path d="M2.5 4.5h8l-2-2M13.5 9.5h-8l2 2"/><path d="M3 13.5h10"/>',
+  spark:'<path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l2 2M10 10l2 2M12 4l-2 2M6 10l-2 2"/>'
+};
+const ic = (name, size=16) => `<svg viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${SVG[name]}</svg>`;
+for (const b of document.querySelectorAll('[data-ic]')) b.innerHTML = ic(b.dataset.ic, +(b.dataset.s||16));
+askPill.innerHTML = ic('cmt', 14) + '<span>Comment</span>';
+
+/* ---------- languages and highlighting ---------- */
+const RX = {
+  slc:/\/\/.*/, hash:/#.*/, blk:/\/\*[\s\S]*?(?:\*\/|(?![\s\S]))/, hcom:/<!--[\s\S]*?(?:-->|(?![\s\S]))/,
+  dq:/"(?:\\.|[^"\\\n])*"?/, sq:/'(?:\\.|[^'\\\n])*'?/, ch:/'(?:\\.|[^'\\\n])'/, bt:/`(?:\\[\s\S]|[^`\\])*`?/,
+  tq:/"""[\s\S]*?(?:"""|(?![\s\S]))|'''[\s\S]*?(?:'''|(?![\s\S]))/, key:/"(?:\\.|[^"\\\n])*"(?=\s*:)/,
+  num:/\b(?:0[xXbB][\da-fA-F_]+|\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?)[a-zA-Z]*/, id:/[A-Za-z_$][\w$]*/,
+  pre:/^[ \t]*#[ \t]*\w+/
+};
+const KW = {
+  js:'await break case catch class const continue debugger default delete do else export extends false finally for from function if import in instanceof let new null of return static super switch this throw true try typeof undefined var void while yield async',
+  c:'auto bool break case catch char class const constexpr continue default delete do double else enum explicit extern false float for friend goto if inline int long namespace new nullptr operator override private protected public return short signed sizeof static struct switch template this throw true try typedef typename union unsigned using virtual void volatile while uint8_t uint16_t uint32_t uint64_t int8_t int16_t int32_t int64_t size_t',
+  java:'abstract boolean break byte case catch char class const continue default do double else enum extends false final finally float for if implements import instanceof int interface long new null package private protected public return short static super switch this throw throws true try var void volatile while',
+  go:'break case chan const continue default defer else fallthrough false for func go goto if import interface map nil package range return select struct switch true type var',
+  rs:'as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while',
+  py:'and as assert async await break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return self True try while with yield',
+  sh:'if then else elif fi for while until do done case esac function in return export local readonly echo exit set unset source'
+};
+KW.ts = KW.js + ' interface type enum implements private public protected readonly as declare namespace abstract keyof';
+function compile(rules){ return { re:new RegExp(rules.map(r => '(' + r[1].source + ')').join('|'), 'gm'), cls:rules.map(r => r[0]) }; }
+const L = (name, color, rules, kw, cm, colon) => ({ name, color, rules:rules ? compile(rules) : null, kw:new Set((kw||'').split(' ')), cm, colon:!!colon });
+const C_LIKE = [['com',RX.slc],['com',RX.blk],['str',RX.dq],['str',RX.ch],['num',RX.num],['id',RX.id]];
+const JS_RULES = [['com',RX.slc],['com',RX.blk],['str',RX.bt],['str',RX.dq],['str',RX.sq],['num',RX.num],['id',RX.id]];
+const CONF = [['com',RX.hash],['kw',/^[ \t]*\[[^\]\n]*\]/],['attr',/^[ \t-]*[\w.-]+(?=[ \t]*[=:])/],['str',RX.dq],['str',RX.sq],['num',RX.num],['kw',/\b(?:true|false|null)\b/]];
+const LANG = {
+  js:L('JavaScript','#d4a72c',JS_RULES,KW.js,['// ','']),
+  ts:L('TypeScript','#3b82f6',JS_RULES,KW.ts,['// ','']),
+  c:L('C/C++','#5b8def',[['pre',RX.pre],...C_LIKE],KW.c,['// ','']),
+  java:L('Java','#e76f51',C_LIKE,KW.java,['// ','']),
+  go:L('Go','#22a7c4',[['str',RX.bt],...C_LIKE],KW.go,['// ','']),
+  rs:L('Rust','#c46a3b',C_LIKE,KW.rs,['// ','']),
+  py:L('Python','#3d7ab8',[['str',RX.tq],['com',RX.hash],['str',RX.dq],['str',RX.sq],['num',RX.num],['id',RX.id]],KW.py,['# ',''],true),
+  sh:L('Shell','#4caf50',[['com',RX.hash],['str',RX.dq],['str',RX.sq],['num',RX.num],['id',RX.id]],KW.sh,['# ','']),
+  json:L('JSON','#d19a66',[['attr',RX.key],['str',RX.dq],['num',RX.num],['kw',/\b(?:true|false|null)\b/]],'',null),
+  css:L('CSS','#3fa9b5',[['com',RX.blk],['str',RX.dq],['str',RX.sq],['kw',/@[\w-]+|!important/],['num',/#[\da-fA-F]{3,8}\b|-?\b\d+(?:\.\d+)?(?:[a-z]+|%)?/],['attr',/[\w-]+(?=\s*:[^:{;\n]*;)/]],'',['/* ',' */']),
+  html:L('HTML','#e06c75',[['com',RX.hcom],['tag',/<\/?[\w:-]+|\/?>/],['attr',/[\w:-]+(?=\s*=)/],['str',RX.dq],['str',RX.sq]],'',['<!-- ',' -->']),
+  md:L('Markdown','#8a8f98',[['kw',/^#{1,6}[ \t].*/],['com',/^```.*/],['str',/`[^`\n]+`/],['fn',/\*\*[^*\n]+\*\*/],['attr',/^[ \t]*(?:[-*+]|\d+\.)(?=[ \t])/],['tag',/\[[^\]\n]*\]\([^)\n]*\)/]],'',null),
+  ini:L('INI','#a66ed6',[['com',/[#;].*/],['kw',/^[ \t]*\[[^\]\n]*\]/],['attr',/^[ \t]*[\w.-]+(?=[ \t]*=)/],['str',RX.dq],['num',RX.num]],'',['; ','']),
+  toml:L('TOML','#a66ed6',CONF,'',['# ','']),
+  yaml:L('YAML','#cb4b16',CONF,'',['# ',''],true),
+  txt:L('Plain Text','#8a8f98',null,'',null)
+};
+const EXT = {js:'js',mjs:'js',cjs:'js',jsx:'js',ts:'ts',tsx:'ts',c:'c',h:'c',cpp:'c',cc:'c',hpp:'c',ino:'c',java:'java',go:'go',rs:'rs',py:'py',
+  sh:'sh',bash:'sh',zsh:'sh',json:'json',css:'css',scss:'css',html:'html',htm:'html',xml:'html',svg:'html',vue:'html',md:'md',markdown:'md',
+  ini:'ini',cfg:'ini',conf:'ini',toml:'toml',yml:'yaml',yaml:'yaml'};
+const base = p => p.slice(p.lastIndexOf('/') + 1);
+const dirname = p => p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '';
+const join = (a, b) => a ? a + '/' + b : b;
+const arr = x => Array.isArray(x) ? x.filter(v => typeof v === 'string') : [];
+function langOf(p){
+  if (!p) return LANG.txt;
+  const b = base(p).toLowerCase();
+  if (['makefile','dockerfile','.gitignore','.bashrc'].includes(b)) return LANG.sh;
+  const e = b.includes('.') ? b.split('.').pop() : '';
+  return LANG[EXT[e]] || LANG.txt;
+}
+function tokenize(text, lang){
+  if (!lang.rules) return esc(text);
+  const { re, cls } = lang.rules; re.lastIndex = 0;
+  let out = '', last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m[0] === '') { re.lastIndex++; continue; }
+    let g = 1; while (g < m.length && m[g] === undefined) g++;
+    let c = cls[g - 1]; const s = m[0];
+    if (c === 'id') c = lang.kw.has(s) ? 'kw' : /^\s*\(/.test(text.substr(re.lastIndex, 12)) ? 'fn' : null;
+    out += esc(text.slice(last, m.index)) + (c ? `<span class="t-${c}">${esc(s)}</span>` : esc(s));
+    last = re.lastIndex;
+  }
+  return out + esc(text.slice(last));
+}
+function countLines(s){ let n = 1, i = -1; while ((i = s.indexOf('\n', i + 1)) > -1) n++; return n; }
+
+/* ---------- search helpers, shared by Ctrl+F and the Search panel ---------- */
+function buildRegex(q, o){
+  if (!q) return null;
+  let src = o.re ? q : escRe(q);
+  if (o.ww) src = '(?<![A-Za-z0-9_])(?:' + src + ')(?![A-Za-z0-9_])';
+  return new RegExp(src, 'gm' + (o.cs ? '' : 'i'));   // throws on an invalid expression
+}
+function findAll(text, rx, max){
+  const out = []; rx.lastIndex = 0; let m;
+  while (out.length < max && (m = rx.exec(text))) {
+    if (m[0] === '') { rx.lastIndex++; continue; }
+    out.push([m.index, m.index + m[0].length]);
+  }
+  return out;
+}
+function makeRep(rx, isRe, rep){
+  if (!isRe) return () => rep;
+  const one = new RegExp(rx.source, rx.flags.replace('g', ''));
+  return m => m.replace(one, rep);
+}
+function globList(s){
+  return s.split(',').map(x => x.trim()).filter(Boolean).map(g => {
+    let x = g.replace(/^\.\//, '');
+    if (x.endsWith('/')) x += '**';
+    if (!x.includes('/')) x = '**/' + x;
+    let r = '';
+    for (let i = 0; i < x.length; i++) {
+      const c = x[i];
+      if (c === '*') {
+        if (x[i + 1] === '*') { i++; if (x[i + 1] === '/') { i++; r += '(?:.*/)?'; } else r += '.*'; }
+        else r += '[^/]*';
+      } else if (c === '?') r += '[^/]';
+      else if (c === '{') { const j = x.indexOf('}', i); if (j > i) { r += '(?:' + x.slice(i + 1, j).split(',').map(escRe).join('|') + ')'; i = j; } else r += '\\{'; }
+      else r += escRe(c);
+    }
+    return new RegExp('^' + r + '$', 'i');
+  });
+}
+function globMatch(list, p){
+  if (!list.length) return false;
+  const parts = p.split('/');
+  for (let i = parts.length; i > 0; i--) { const sub = parts.slice(0, i).join('/'); if (list.some(r => r.test(sub))) return true; }
+  return false;
+}
+
+/* ---------- sample project (sample content; written only on request) ---------- */
+const SAMPLE = {
+'weather-station/README.md': String.raw`# Weather station (sample project)
+
+This is sample content to try the editor. Edit, rename or delete it.
+
+## Hardware
+- ESP32-C3 board
+- BME280 sensor on I2C (SDA = GPIO 8, SCL = GPIO 9)
+- Protected 18650 Li-ion cell and a CN3791 solar charger
+
+## Build
+1. Open the folder in PlatformIO.
+2. Set the values in src/config.h.
+3. Run **pio run -t upload**.
+`,
+'weather-station/platformio.ini': String.raw`; PlatformIO project configuration
+[env:esp32c3]
+platform = espressif32
+board = esp32-c3-devkitm-1
+framework = arduino
+monitor_speed = 115200
+lib_deps =
+  adafruit/Adafruit BME280 Library@2.2.2
+`,
+'weather-station/src/config.h': String.raw`#pragma once
+#include <stdint.h>
+
+// Wi-Fi and MQTT settings. Do not commit real credentials.
+constexpr const char* WIFI_SSID = "your-ssid";
+constexpr const char* MQTT_HOST = "192.168.1.10";
+constexpr int MQTT_PORT = 1883;
+
+// I2C pins (ESP32-C3 DevKitM-1)
+constexpr int PIN_SDA = 8;
+constexpr int PIN_SCL = 9;
+
+// Time between readings. 300 s keeps the battery use low.
+constexpr uint64_t SLEEP_DURATION_US = 300ULL * 1000000ULL;
+`,
+'weather-station/src/main.cpp': String.raw`#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_BME280.h>
+#include "config.h"
+
+Adafruit_BME280 bme;
+void goToSleep();
+
+/* Read the sensor once, print the values, then sleep.
+   Deep sleep keeps the average current low. */
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(PIN_SDA, PIN_SCL);
+
+  if (!bme.begin(0x76)) {
+    Serial.println("BME280 not found");
+    goToSleep();
+  }
+
+  float temperature_c = bme.readTemperature();
+  float humidity_pct = bme.readHumidity();
+  float pressure_hpa = bme.readPressure() / 100.0F;
+
+  Serial.printf("T=%.1f C, RH=%.0f %%, p=%.1f hPa\n",
+                temperature_c, humidity_pct, pressure_hpa);
+  goToSleep();
+}
+
+void goToSleep() {
+  esp_sleep_enable_timer_wakeup(SLEEP_DURATION_US);
+  esp_deep_sleep_start();
+}
+
+void loop() {
+  // Not used: the board restarts after each deep sleep.
+}
+`,
+'weather-station/tools/plot.py': String.raw`"""Print a summary of logged readings from a CSV file.
+
+Columns: timestamp_utc, temperature_c, humidity_pct, pressure_hpa
+"""
+import csv
+import sys
+
+
+def load(path):
+    rows = []
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            rows.append((row["timestamp_utc"], float(row["temperature_c"])))
+    return rows
+
+
+if __name__ == "__main__":
+    data = load(sys.argv[1] if len(sys.argv) > 1 else "log.csv")
+    print(f"{len(data)} readings, max {max(t for _, t in data):.1f} C")
+`,
+'weather-station/.gitignore': '.pio/\n.vscode/\n*.csv\n'
+};
+
+/* ---------- state ---------- */
+// fs: saved file contents (the store's state); meta: {rev, by, at} per file.
+// tabBase: for each open tab, the saved {rev, content} the editor buffer started from.
+let fs = {}, meta = {}, dirs = new Set(), explicitDirs = new Set(), tabs = [], active = null, expanded = new Set();
+let selPath = null, pending = null, sideW = 260, sideView = 'explorer', storageOK = true, warned = false;
+let persistTimer = 0, lastLines = -1, curLineIdx = 0, LH = 20, CW = 8.4, treeNote = 'Connecting to the project…';
+const tas = {}, view = {}, tabBase = {}, saving = new Set();
+const store = { mode:'connecting', db:null, canWrite:true, busy:0, hold:0, heldSnap:null, dirsChain:Promise.resolve() };
+let fOpen = false, fMatches = [], fIdx = -1, fErr = '', qoItems = [], qoSel = 0;
+const fOpt = { cs:false, ww:false, re:false };
+const S = { cs:false, ww:false, re:false, showRep:false, results:[], total:0, limited:false, err:'', collapsed:new Set(), rx:null, timer:0 };
+const cm = { list:[], available:false, filter:'open', editing:null, replying:null, flash:null, draft:null, timer:0 };
+
+function ensureParents(p, set = dirs){ const a = p.split('/'); for (let i = 1; i < a.length; i++) set.add(a.slice(0, i).join('/')); }
+function recomputeDirs(){ dirs = new Set(); for (const d of explicitDirs) { dirs.add(d); ensureParents(d); } for (const p in fs) ensureParents(p); }
+function docId(p){
+  let s = 'f_';
+  for (const b of new TextEncoder().encode(p)) s += (b < 128 && /[A-Za-z0-9_.-]/.test(String.fromCharCode(b))) ? String.fromCharCode(b) : '~' + b.toString(16).padStart(2, '0');
+  return s;
+}
+const idOK = p => docId(p).length <= MAX_ID_BYTES;
+const isDirty = p => !!tas[p] && !!tabBase[p] && tas[p].value !== tabBase[p].content;
+const keepDeleted = new Set();   // tabs whose file was deleted remotely but the user chose "Keep mine"
+const isConflict = p => store.mode === 'db' && isDirty(p) && (!(p in fs) ? !keepDeleted.has(p) : (meta[p]?.rev || 0) !== (tabBase[p]?.rev || 0));
+const narrow = () => matchMedia('(max-width:760px)').matches;
+const goneBy = {};   // who last wrote a file that was then deleted remotely
+const who = p => { const by = meta[p]?.by || goneBy[p]; return by === 'claude' ? 'Claude' : by === 'you' ? 'You (another tab or device)' : 'Someone'; };
+
+/* ---------- storage: project database or browser-only fallback ---------- */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function withRetry(fn){
+  for (let i = 0; ; i++) {
+    try { return await fn(); }
+    catch (e) {
+      const c = e && e.code;
+      if (i < 2 && (c === 'unavailable' || c === 'resource_exhausted')) { await sleep((c === 'resource_exhausted' ? 2000 : 400) + Math.random() * 800); continue; }
+      throw e;
+    }
+  }
+}
+async function busy(fn){ store.busy++; renderStatus(); try { return await fn(); } finally { store.busy--; renderStatus(); } }
+async function hold(fn){
+  store.hold++;
+  try { return await fn(); }
+  finally { store.hold--; if (!store.hold && store.heldSnap) { const s = store.heldSnap; store.heldSnap = null; applyFiles(s); } }
+}
+function reportErr(e){
+  const c = e && e.code;
+  const msg = c === 'invalid_argument' ? 'The project refused the change. You may only have read access, or the file is too large.'
+    : c === 'quota_exceeded' ? 'The project database is full: ' + (e.message || '') + ' Delete some files and try again.'
+    : c === 'revoked' ? 'Access to the project ended. Reload the page.'
+    : c === 'exists' ? 'A file with that name already exists.'
+    : c === 'too_large' ? 'The file is too large for the project (limit about 200,000 characters).'
+    : 'Could not save the change' + (c ? ' (' + c + ')' : '') + '. Try again.';
+  toast(msg, 'err');
+}
+// Write one file. expectedRev: null = must not exist yet, a number = the record must still have this rev.
+async function writeFile(p, content, expectedRev){
+  if (content.length > MAX_DOC_CHARS) throw { code:'too_large' };
+  if (store.mode !== 'db') { fs[p] = content; meta[p] = { rev:0 }; persist(); return 0; }
+  const ref = store.db.doc('files/' + docId(p));
+  return withRetry(async () => {
+    const cur = await ref.get();
+    const curRev = cur.exists ? (+(cur.data() || {}).rev || 0) : 0;
+    if (expectedRev === null && cur.exists) throw { code:'exists' };
+    if (expectedRev !== null && curRev !== expectedRev) throw { code:'conflict', rev:curRev };
+    const rec = { path:p, content, rev:curRev + 1, by:'you', at:new Date().toISOString() };
+    await ref.set(rec);
+    fs[p] = content; meta[p] = { rev:rec.rev, by:'you', at:rec.at };
+    return rec.rev;
+  });
+}
+async function deleteFile(p){
+  if (store.mode === 'db') await withRetry(() => store.db.doc('files/' + docId(p)).delete());
+  delete fs[p]; delete meta[p];
+  if (store.mode !== 'db') persist();
+}
+function writeDirs(){
+  if (store.mode !== 'db') { persist(); return Promise.resolve(); }
+  const list = [...explicitDirs].sort();
+  store.dirsChain = store.dirsChain.then(() => withRetry(() => store.db.doc('meta/dirs').set({ list }))).catch(reportErr);
+  return store.dirsChain;
+}
+// Put a file without a tab check (import, sample, replace in closed files).
+async function putFile(p, text){
+  const rev = await writeFile(p, text, p in fs ? (meta[p]?.rev || 0) : null);
+  if (tas[p] && !isDirty(p)) { replaceBuffer(p, text); tabBase[p] = { rev, content:text }; }
+  return rev;
+}
+
+function persist(){
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    const buf = {};
+    for (const p of tabs) if (isDirty(p)) buf[p] = { text:tas[p].value, rev:tabBase[p].rev, base:tabBase[p].content };
+    const ui = { tabs, active, expanded:[...expanded], buf, sideW, side:!app.classList.contains('noside'), sideView, chat:app.classList.contains('chat') };
+    try {
+      localStorage.setItem(UI_KEY + ':' + store.mode, JSON.stringify(ui));
+      if (store.mode === 'local') localStorage.setItem(LOCAL_KEY, JSON.stringify({ fs, dirs:[...explicitDirs] }));
+      storageOK = true;
+    } catch (e) {
+      storageOK = false;
+      if (!warned) { warned = true; toast('Could not save to browser storage. It may be full or blocked.', 'err'); }
+    }
+    renderStatus();
+  }, 400);
+}
+function readJSON(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { storageOK = false; return null; } }
+function restoreUI(ui){
+  if (!ui || typeof ui !== 'object') return;
+  sideW = Math.max(180, Math.min(600, +ui.sideW || 260));
+  if (ui.side === false) app.classList.add('noside');
+  if (ui.chat === true) app.classList.add('chat');
+  sideView = ui.sideView === 'search' ? 'search' : 'explorer';
+  expanded = new Set(arr(ui.expanded));
+  for (const p of arr(ui.tabs)) {
+    if (!(p in fs) || tabs.includes(p)) continue;
+    const b = ui.buf && ui.buf[p];
+    let text, bs = { rev:meta[p]?.rev || 0, content:fs[p] };
+    if (typeof b === 'string') text = b;                                   // v1 format
+    else if (b && typeof b.text === 'string') { text = b.text; bs = { rev:+b.rev || 0, content:typeof b.base === 'string' ? b.base : fs[p] }; }
+    openTab(p, false, text, bs);
+    if (tas[p].value === fs[p]) tabBase[p] = { rev:meta[p]?.rev || 0, content:fs[p] };
+  }
+  active = tabs.includes(ui.active) ? ui.active : (tabs[0] || null);
+}
+
+/* ---------- start ---------- */
+async function start(){
+  let db = null;
+  const t0 = Date.now();
+  while (!(window.claude && typeof window.claude.use === 'function') && Date.now() - t0 < CONNECT_WAIT_MS) await sleep(100);
+  if (window.claude && typeof window.claude.use === 'function') { try { db = await window.claude.use('db'); } catch (e) { db = null; } }
+  if (!db) { startLocal(); return; }
+  store.db = db; store.mode = 'db';
+  try {
+    const user = await window.claude.use('user');
+    if (user && typeof user.can === 'function') { const c = await user.can('data.write'); if (c === false) store.canWrite = false; }
+  } catch (e) {}
+  treeNote = 'Loading project…'; renderTree(); renderStatus();
+  subscribe();
+}
+function startLocal(){
+  store.mode = 'local';
+  const d = readJSON(LOCAL_KEY);
+  let ui = readJSON(UI_KEY + ':local');
+  if (d && d.fs && typeof d.fs === 'object') {
+    fs = {}; for (const k in d.fs) if (typeof d.fs[k] === 'string') fs[k] = d.fs[k];
+    explicitDirs = new Set(arr(d.dirs));
+    if (!ui && d.tabs) ui = { ...d, sideW:d.sideW };                    // v1 kept view state in the same record
+  } else {
+    fs = { ...SAMPLE }; explicitDirs = new Set();
+    if (!ui) ui = { tabs:['weather-station/src/main.cpp','weather-station/README.md'], active:'weather-station/src/main.cpp', expanded:['weather-station','weather-station/src'] };
+  }
+  for (const p in fs) meta[p] = { rev:0 };
+  recomputeDirs(); treeNote = 'No files yet. Use New file or Import.';
+  restoreUI(ui); finishStart();
+  toast('The project database is not available here. Files stay in this browser only.');
+}
+function finishStart(){
+  if (narrow()) app.classList.remove('chat');
+  if (narrow()) app.classList.add('noside');
+  app.style.setProperty('--sw', sideW + 'px');
+  $('#btnReset').hidden = store.mode !== 'local';
+  measure(); renderSide(); render(); renderComments();
+  if (active) setActive(active); else persist();
+}
+function subscribe(){
+  let first = true;
+  const timer = setTimeout(() => { if (first) { treeNote = 'The project data cannot be reached yet. Check the connection; the page keeps trying.'; renderTree(); } }, LOAD_TIMEOUT_MS);
+  store.db.collection('files').onSnapshot(snap => {
+    if (!snap.metadata.fromCache) clearTimeout(timer);
+    applyFiles(snap);
+    if (first) { first = false; treeNote = 'No files yet.'; restoreUI(readJSON(UI_KEY + ':db')); finishStart(); }
+  }, err => { clearTimeout(timer); toast('Lost the connection to the project data (' + (err && err.code) + '). Reload the page to reconnect.', 'err'); store.mode = 'offline'; renderStatus(); });
+  store.db.doc('meta/dirs').onSnapshot(s => {
+    const d = s.exists ? s.data() : null;
+    explicitDirs = new Set(arr(d && d.list).filter(x => validName(x, true)));
+    recomputeDirs(); renderTree();
+  }, () => {});
+  cm.available = true;
+  store.db.collection('comments').orderBy('n').limit(MAX_COMMENTS).onSnapshot(snap => {
+    cm.list = snap.docs.map(d => ({ id:d.id, ...(d.data() || {}) }))
+      .filter(c => typeof c.path === 'string' && typeof c.text === 'string' && typeof c.quote === 'string' && Number.isFinite(+c.n));
+    renderComments(); paintComments(); renderStatus();
+  }, () => { cm.available = false; renderComments(); });
+}
+function applyFiles(snap){
+  if (store.hold) { store.heldSnap = snap; return; }
+  const nfs = {}, nmeta = {};
+  for (const d of snap.docs) {
+    const x = d.data();
+    if (!x || typeof x.path !== 'string' || typeof x.content !== 'string' || !validName(x.path, true) || docId(x.path) !== d.id) continue;
+    nfs[x.path] = x.content;
+    nmeta[x.path] = { rev:+x.rev || 0, by:typeof x.by === 'string' ? x.by : '', at:typeof x.at === 'string' ? x.at : '' };
+  }
+  for (const p of tabs) if (!(p in nfs) && meta[p]) goneBy[p] = meta[p].by;
+  fs = nfs; meta = nmeta; recomputeDirs();
+  const gone = [];
+  for (const p of [...tabs]) {
+    if (!(p in fs)) { if (!isDirty(p)) { dropTab(p, true); gone.push(base(p)); } continue; }
+    if (!isDirty(p)) {
+      if (tabBase[p].rev !== meta[p].rev || tabBase[p].content !== fs[p]) { replaceBuffer(p, fs[p]); tabBase[p] = { rev:meta[p].rev, content:fs[p] }; }
+    } else if (tas[p].value === fs[p]) tabBase[p] = { rev:meta[p].rev, content:fs[p] };
+  }
+  if (gone.length) toast(`Deleted in the project: ${gone.join(', ')}`);
+  if (active && !tabs.includes(active)) { active = null; if (tabs.length) { setActive(tabs[0]); scheduleSearch(); return; } }
+  render(); scheduleSearch();
+}
+function replaceBuffer(p, text){
+  const t = tas[p]; if (!t) return;
+  const s = t.selectionStart, e = t.selectionEnd, st = t.scrollTop, sl = t.scrollLeft;
+  t.value = text;
+  t.setSelectionRange(Math.min(s, text.length), Math.min(e, text.length)); t.scrollTop = st; t.scrollLeft = sl;
+  if (p === active) { lastLines = -1; paint(); caret(); }
+}
+function guardWrite(){
+  if (store.mode === 'connecting') { toast('Still connecting to the project…'); return false; }
+  if (store.mode === 'offline') { toast('The connection to the project was lost. Reload the page.', 'err'); return false; }
+  if (!store.canWrite) { toast('You can only read this project.', 'err'); return false; }
+  return true;
+}
+
+/* ---------- tabs and textareas ---------- */
+function makeTa(p, text){
+  const t = document.createElement('textarea');
+  t.className = 'ta'; t.spellcheck = false; t.wrap = 'off'; t.readOnly = !store.canWrite;
+  t.setAttribute('autocapitalize', 'off'); t.setAttribute('autocomplete', 'off'); t.setAttribute('aria-label', 'Editor: ' + p);
+  t.value = text;
+  t.addEventListener('input', () => onInput(t));
+  t.addEventListener('keydown', keyTa);
+  t.addEventListener('scroll', () => { if (t === tas[active]) { sync(); placePill(); } });
+  t.addEventListener('blur', () => setTimeout(placePill, 150));
+  code.insertBefore(t, askPill); tas[p] = t;
+}
+function openTab(p, activate = true, text, bs){
+  if (!(p in fs)) return;
+  if (!tabs.includes(p)) { tabs.push(p); tabBase[p] = bs || { rev:meta[p]?.rev || 0, content:fs[p] }; makeTa(p, text ?? fs[p]); }
+  if (activate) setActive(p);
+}
+function setActive(p){
+  if (p !== active) closeComposer();
+  if (active && tas[active]) view[active] = { st:tas[active].scrollTop, sl:tas[active].scrollLeft };
+  active = p; if (p) selPath = p;
+  for (const k in tas) tas[k].classList.toggle('on', k === p);
+  if (p) { let d = dirname(p); while (d) { expanded.add(d); d = dirname(d); } }
+  render();
+  const t = tas[p];
+  if (t) { if (view[p]) { t.scrollTop = view[p].st; t.scrollLeft = view[p].sl; } t.focus({ preventScroll:true }); sync(); caret(); }
+  persist();
+}
+function dropTab(p, quiet){
+  const i = tabs.indexOf(p); if (i < 0) return;
+  tabs.splice(i, 1); tas[p]?.remove(); delete tas[p]; delete view[p]; delete tabBase[p];
+  if (quiet) return;
+  if (active === p) { active = null; const n = tabs[Math.min(i, tabs.length - 1)]; if (n) { setActive(n); return; } }
+  render(); persist();
+}
+async function closeTab(p){
+  if (isDirty(p)) {
+    const r = await modal(`Save changes to "${base(p)}"?`, 'Your changes will be lost if you do not save them.',
+      [{ l:'Save', v:'save', primary:1 }, { l:"Don't save", v:'discard' }, { l:'Cancel', v:'cancel' }]);
+    if (r === 'cancel' || r == null) return;
+    if (r === 'save' && !(await save(p))) return;
+  }
+  dropTab(p);
+}
+async function save(p){
+  if (!p || !tas[p]) return false;
+  if (!isDirty(p)) return true;
+  if (!guardWrite()) return false;
+  if (isConflict(p)) { toast('This file changed in the project. Use the bar above the editor first.', 'err'); return false; }
+  if (saving.has(p)) return false;
+  const content = tas[p].value;
+  saving.add(p);
+  try {
+    const rev = await busy(() => writeFile(p, content, p in fs ? tabBase[p].rev : null));
+    if (tabBase[p]) tabBase[p] = { rev, content };
+    keepDeleted.delete(p); recomputeDirs(); renderTree();
+    return true;
+  } catch (e) {
+    if (e && e.code === 'conflict') { meta[p] = { ...(meta[p] || {}), rev:e.rev }; toast('This file changed in the project while you edited it.', 'err'); }
+    else reportErr(e);
+    return false;
+  } finally { saving.delete(p); updateDirty(); renderConflict(); persist(); }
+}
+async function saveAll(){
+  let n = 0, failed = 0;
+  for (const p of tabs) if (isDirty(p)) { if (await save(p)) n++; else failed++; }
+  toast(failed ? `Saved ${n}, ${failed} not saved` : n ? `Saved ${n} file${n === 1 ? '' : 's'}` : 'No unsaved changes', failed ? 'err' : '');
+}
+function cycleTab(dir){ if (tabs.length < 2) return; const i = tabs.indexOf(active); setActive(tabs[(i + dir + tabs.length) % tabs.length]); }
+
+/* ---------- rendering ---------- */
+function render(){ renderTabs(); renderTree(); renderEditor(); renderStatus(); }
+function renderTabs(){
+  tabsEl.innerHTML = tabs.map(p => {
+    const dup = tabs.some(q => q !== p && base(q) === base(p));
+    return `<div class="tab${p === active ? ' on' : ''}${isDirty(p) ? ' dirty' : ''}${isConflict(p) ? ' conf' : ''}" role="tab" aria-selected="${p === active}" draggable="true" data-p="${esc(p)}" title="${esc(p)}">`
+      + `<span class="fi" style="color:${langOf(p).color}">${ic('file')}</span><span class="nm">${esc(base(p))}</span>`
+      + (dup ? `<span class="hint">${esc(base(dirname(p)) || '/')}</span>` : '')
+      + `<button class="x" tabindex="-1" aria-label="Close ${esc(base(p))}">${ic('x')}</button></div>`;
+  }).join('');
+  tabsEl.querySelector('.tab.on')?.scrollIntoView({ block:'nearest', inline:'nearest' });
+}
+function kids(dir){
+  const pre = dir ? dir + '/' : '', ds = [], fl = [];
+  for (const d of dirs) if (d !== dir && d.startsWith(pre) && !d.slice(pre.length).includes('/')) ds.push(d);
+  for (const f in fs) if (f.startsWith(pre) && !f.slice(pre.length).includes('/')) fl.push(f);
+  const cmp = (a, b) => base(a).localeCompare(base(b), undefined, { sensitivity:'base', numeric:true });
+  return [ds.sort(cmp), fl.sort(cmp)];
+}
+function rowHtml(p, depth, k){
+  const open = expanded.has(p);
+  return `<div class="row${p === active ? ' act' : ''}${p === selPath ? ' sel' : ''}${k === 'f' && isDirty(p) ? ' dirty' : ''}" role="treeitem" draggable="true" data-p="${esc(p)}" data-k="${k}" style="--d:${depth}"${k === 'd' ? ` aria-expanded="${open}"` : ''}>`
+    + (k === 'd' ? `<span class="chev${open ? ' open' : ''}">${ic('chev', 14)}</span><span class="fi fold">${ic('folder')}</span>`
+                 : `<i class="sp"></i><span class="fi" style="color:${langOf(p).color}">${ic('file')}</span>`)
+    + `<span class="nm">${esc(base(p))}</span></div>`;
+}
+function inputHtml(depth, k, val){
+  return `<div class="row inp" style="--d:${depth}"><i class="sp"></i><span class="fi${k === 'd' ? ' fold' : ''}">${ic(k === 'd' ? 'folder' : 'file')}</span>`
+    + `<input aria-label="${k === 'd' ? 'Folder name' : 'File name'}" value="${esc(val)}" spellcheck="false" autocomplete="off"></div>`;
+}
+function emptyActions(){
+  if (store.mode !== 'db' || !store.canWrite) return '';
+  const local = readJSON(LOCAL_KEY), n = local && local.fs ? Object.keys(local.fs).length : 0;
+  return (n ? `<button class="btn primary" data-a="migrate">Move ${n} local file${n === 1 ? '' : 's'} into this project</button>` : '')
+    + `<button class="btn" data-a="sample">Load the sample project</button>`;
+}
+function renderTree(){
+  let h = '';
+  const walk = (dir, depth) => {
+    if (pending && pending.mode !== 'rename' && pending.parent === dir) h += inputHtml(depth, pending.mode === 'dir' ? 'd' : 'f', '');
+    const [ds, fl] = kids(dir);
+    for (const d of ds) {
+      h += pending && pending.mode === 'rename' && pending.path === d ? inputHtml(depth, 'd', base(d)) : rowHtml(d, depth, 'd');
+      if (expanded.has(d)) walk(d, depth + 1);
+    }
+    for (const f of fl) h += pending && pending.mode === 'rename' && pending.path === f ? inputHtml(depth, 'f', base(f)) : rowHtml(f, depth, 'f');
+  };
+  if (store.mode !== 'connecting') walk('', 0);
+  tree.innerHTML = h || `<div class="empty"><p>${esc(treeNote)}</p>${store.mode === 'connecting' ? '' : emptyActions()}</div>`;
+  const inp = tree.querySelector('input'); if (inp) bindInput(inp);
+}
+function renderEditor(){
+  const has = !!(active && tas[active]);
+  code.hidden = !has; welcome.hidden = has; crumbs.hidden = !has;
+  if (!has) { if (fOpen) { fOpen = false; find.hidden = true; } renderWelcome(); renderConflict(); askPill.hidden = true; closeComposer(); paintComments(); return; }
+  lastLines = -1; paint(); renderCrumbs(); renderConflict();
+  if (fOpen) recompute(false);
+}
+function renderWelcome(){
+  const db = store.mode === 'db';
+  $('#wIntro').textContent = store.mode === 'connecting' ? 'Connecting to the project…'
+    : 'A small code editor that runs in this page. Open a file from the Explorer, or start with one of these.';
+  $('#wBtns').innerHTML = store.mode === 'connecting' ? ''
+    : `<button class="btn primary" data-a="new">New file</button><button class="btn" data-a="dir">Import folder…</button><button class="btn" data-a="qo">Go to file…</button>`
+      + (db && !Object.keys(fs).length ? emptyActions() : '') + (db ? `<button class="btn" data-a="chat">Comments</button>` : '');
+  $('#wNote').textContent = db
+    ? "Files are stored in this artifact's project database. Claude can read and write them, and anyone you share this page with can read them. Do not store secrets here."
+    : store.mode === 'local' ? "The project database is not available here, so files stay in this browser only and Claude can't see them." : '';
+}
+function renderCrumbs(){
+  const parts = active.split('/');
+  crumbs.innerHTML = parts.map((s, i) => `<span class="seg${i === parts.length - 1 ? ' last' : ''}">${esc(s)}</span>`).join(`<span class="sepc">${ic('chev', 12)}</span>`)
+    + `<span class="grow"></span><button data-a="save" title="Save (${keyText('save')})">${ic('save', 14)}<span>Save</span></button><button data-a="copy" title="Copy file content to the clipboard">${ic('copy', 14)}<span>Copy</span></button>`;
+}
+function renderConflict(){
+  const p = active, show = !!p && isConflict(p);
+  conflictEl.hidden = !show; if (!show) return;
+  const deleted = !(p in fs);
+  $('#cMsg').textContent = deleted ? `${who(p)} deleted "${base(p)}". Your unsaved edits are still here.`
+    : `${who(p)} changed "${base(p)}" while you had unsaved edits.`;
+  $('#cTheirs').textContent = deleted ? 'Close the file' : 'Load their version';
+  $('#cMine').textContent = deleted ? 'Keep mine (Save recreates it)' : 'Keep mine';
+}
+function renderStatus(){
+  const t = tas[active], unsaved = tabs.filter(isDirty).length;
+  const mode = store.mode === 'db' ? (store.busy ? 'Saving…' : store.canWrite ? 'Project synced' : 'Project (read only)')
+    : store.mode === 'local' ? (storageOK ? 'Browser storage only' : 'Browser storage blocked: work is not kept')
+    : store.mode === 'offline' ? 'Disconnected: reload the page' : 'Connecting…';
+  const oc = cm.list.filter(c => c.status !== 'resolved').length;
+  let h = `<span>${esc(mode)}</span>` + (unsaved ? `<span>${unsaved} unsaved</span>` : '') + (oc ? `<button data-a="cm" title="Show comments">${oc} open comment${oc === 1 ? '' : 's'}</button>` : '') + (chordAt ? `<span>${esc(keyText('newFile').split(' ')[0])} was pressed. Press the second key…</span>` : '') + '<span class="grow"></span>' + `<button data-a="pal" title="Show all commands (${esc(keyText('palette'))} or F1)">Commands</button>`;
+  if (t) {
+    const s = t.selectionStart, e = t.selectionEnd, c = t.selectionDirection === 'backward' ? s : e, before = t.value.slice(0, c);
+    h += `<button data-a="goto" title="Go to line (${keyText('gotoLine')})">Ln ${countLines(before)}, Col ${c - before.lastIndexOf('\n')}${e > s ? ` (${e - s} selected)` : ''}</button>`
+      + `<span class="opt">Spaces: ${IND.length}</span><span class="opt">UTF-8</span><span class="opt">LF</span><span>${esc(langOf(active).name)}</span>`;
+  }
+  statusEl.innerHTML = h;
+}
+function updateDirty(){
+  for (const el of document.querySelectorAll('.tab, .row[data-k="f"]')) {
+    el.classList.toggle('dirty', isDirty(el.dataset.p));
+    if (el.classList.contains('tab')) el.classList.toggle('conf', isConflict(el.dataset.p));
+  }
+  renderStatus();
+}
+function renderSide(){
+  const on = !app.classList.contains('noside');
+  $('#pExplorer').hidden = sideView !== 'explorer'; $('#pSearch').hidden = sideView !== 'search';
+  $('#btnExplorer').classList.toggle('on', on && sideView === 'explorer');
+  $('#btnSearch').classList.toggle('on', on && sideView === 'search');
+  $('#btnChat').classList.toggle('on', app.classList.contains('chat'));
+}
+
+/* ---------- code view ---------- */
+function paint(){
+  const t = tas[active]; if (!t) return;
+  const v = t.value;
+  hl.innerHTML = (v.length > MAX_HL_CHARS ? esc(v) : tokenize(v, langOf(active))) + '\n';
+  const n = countLines(v);
+  if (n !== lastLines) {
+    lastLines = n;
+    gnums.textContent = Array.from({ length:n }, (_, i) => i + 1).join('\n');
+    code.style.setProperty('--gw', (Math.max(2, String(n).length) + 3) + 'ch');
+  }
+  paintMarks(); paintComments(); sync();
+}
+function sync(){
+  const t = tas[active]; if (!t) return;
+  const y = t.scrollTop, x = t.scrollLeft, tr = `translate(${-x}px,${-y}px)`;
+  hl.style.transform = tr; marks.style.transform = tr; chl.style.transform = tr; gnums.style.transform = `translateY(${-y}px)`; cmk.style.transform = `translateY(${-y}px)`;
+  curline.style.top = (PAD_T + curLineIdx * LH - y) + 'px';
+}
+function caret(){
+  const t = tas[active]; if (!t) return;
+  const c = t.selectionDirection === 'backward' ? t.selectionStart : t.selectionEnd;
+  curLineIdx = countLines(t.value.slice(0, c)) - 1; sync(); renderStatus(); placePill();
+}
+function measure(){
+  const cs = getComputedStyle(code); LH = parseFloat(cs.lineHeight) || 20;
+  const m = document.createElement('span'); m.textContent = '0'.repeat(100);
+  m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit';
+  code.appendChild(m); const w = m.getBoundingClientRect().width / 100; if (w > 0) CW = w; m.remove();
+}
+function posOf(p){ const t = tas[active], before = t.value.slice(0, p); return { line:countLines(before) - 1, col:p - before.lastIndexOf('\n') - 1 }; }
+function scrollToPos(p){
+  const t = tas[active]; if (!t) return;
+  const { line, col } = posOf(p), y = PAD_T + line * LH, h = t.clientHeight;
+  if (y < t.scrollTop + LH || y > t.scrollTop + h - 2 * LH) t.scrollTop = Math.max(0, y - h / 3);
+  const x = 8 + col * CW, w = t.clientWidth;
+  if (x < t.scrollLeft + 24 || x > t.scrollLeft + w - 64) t.scrollLeft = Math.max(0, x - w / 2);
+  sync();
+}
+function lineStart(t, n){ let pos = 0; for (let i = 1; i < n; i++) { const j = t.value.indexOf('\n', pos); if (j < 0) break; pos = j + 1; } return pos; }
+function gotoLine(n){
+  const t = tas[active]; if (!t || !(n > 0)) return;
+  const pos = lineStart(t, n);
+  t.focus(); t.setSelectionRange(pos, pos); scrollToPos(pos); caret();
+}
+function selectLines(p, a, b){
+  openTab(p); const t = tas[p]; if (!t) return;
+  const s = lineStart(t, a), e0 = t.value.indexOf('\n', lineStart(t, b)), e = e0 < 0 ? t.value.length : e0;
+  t.focus(); t.setSelectionRange(s, e); scrollToPos(s); caret();
+}
+function onInput(t){
+  if (t !== tas[active]) return;
+  paint(); caret(); updateDirty(); renderConflict(); if (fOpen) recompute(false); scheduleSearch(); scheduleComments(); persist();
+}
+
+/* ---------- editing commands ---------- */
+function insert(t, text, s, e, selS, selE){
+  t.focus(); t.setSelectionRange(s, e);
+  let ok = false;
+  try { ok = text === '' ? (s === e || document.execCommand('delete')) : document.execCommand('insertText', false, text); } catch (_) {}
+  if (!ok) { t.setRangeText(text, s, e, 'end'); onInput(t); }
+  if (selS != null) t.setSelectionRange(selS, selE ?? selS);
+}
+function lineBlock(t){
+  const v = t.value, s = t.selectionStart; let e = t.selectionEnd;
+  if (e > s && v[e - 1] === '\n') e--;
+  const ls = v.lastIndexOf('\n', s - 1) + 1, j = v.indexOf('\n', e), le = j < 0 ? v.length : j;
+  return { ls, le, block:v.slice(ls, le) };
+}
+function keyTa(e){
+  const t = e.target, v = t.value, s = t.selectionStart, en = t.selectionEnd, mod = e.ctrlKey || e.metaKey;
+  if (t.readOnly) return;
+  if (e.key === 'Tab' && !mod && !e.altKey) {
+    e.preventDefault();
+    if (!e.shiftKey && !v.slice(s, en).includes('\n')) { insert(t, IND, s, en); return; }
+    const { ls, le, block } = lineBlock(t), lines = block.split('\n');
+    const out = lines.map(l => e.shiftKey ? l.replace(new RegExp('^ {1,' + IND.length + '}|^\\t'), '') : (l ? IND + l : l)).join('\n');
+    if (out === block) return;
+    if (lines.length === 1) { const d = block.length - out.length; insert(t, out, ls, le, Math.max(ls, s - d), Math.max(ls, en - d)); }
+    else insert(t, out, ls, le, ls, ls + out.length);
+    return;
+  }
+  if (e.key === 'Enter' && !mod && !e.altKey && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    const ls = v.lastIndexOf('\n', s - 1) + 1, ind = v.slice(ls, s).match(/^[ \t]*/)[0];
+    const prev = v.slice(ls, s).trimEnd().slice(-1), next = v[en];
+    let ins = '\n' + ind, caretAt = null;
+    if (prev && (langOf(active).colon ? '{[(:' : '{[(').includes(prev)) {
+      ins += IND;
+      const pair = { '{':'}', '[':']', '(':')' }[prev];
+      if (pair && next === pair) { caretAt = s + ins.length; ins += '\n' + ind; }
+    }
+    insert(t, ins, s, en);
+    if (caretAt != null) t.setSelectionRange(caretAt, caretAt);
+    return;
+  }
+  if (e.key === 'Backspace' && s === en && !mod && !e.altKey) {
+    const pre = v.slice(v.lastIndexOf('\n', s - 1) + 1, s);
+    if (pre.length >= IND.length && /^ +$/.test(pre)) { e.preventDefault(); insert(t, '', s - (pre.length % IND.length || IND.length), s); }
+    return;
+  }
+}
+function toggleComment(t){
+  const cm = langOf(active).cm; if (!cm) return;
+  const [a, b] = cm, at = a.trim(), bt = b.trim();
+  const { ls, le, block } = lineBlock(t), lines = block.split('\n'), filled = lines.filter(l => l.trim());
+  if (!filled.length) return;
+  const all = filled.every(l => l.trimStart().startsWith(at) && (!bt || l.trimEnd().endsWith(bt)));
+  const minInd = Math.min(...filled.map(l => l.match(/^\s*/)[0].length));
+  const out = lines.map(l => {
+    if (!l.trim()) return l;
+    if (!all) return l.slice(0, minInd) + a + l.slice(minInd) + b;
+    const i = l.indexOf(at); let r = l.slice(0, i) + l.slice(i + at.length);
+    if (r[i] === ' ') r = r.slice(0, i) + r.slice(i + 1);
+    if (bt) { const j = r.lastIndexOf(bt); r = r.slice(0, j) + r.slice(j + bt.length); if (r[j - 1] === ' ') r = r.slice(0, j - 1) + r.slice(j); }
+    return r;
+  }).join('\n');
+  const s = t.selectionStart, en = t.selectionEnd;
+  if (lines.length === 1) { const d = out.length - block.length; insert(t, out, ls, le, Math.max(ls, s + d), Math.max(ls, en + d)); }
+  else insert(t, out, ls, le, ls, ls + out.length);
+}
+
+/* ---------- find and replace in the current file ---------- */
+function openFind(){
+  const t = tas[active]; if (!t) return;
+  fOpen = true; find.hidden = false;
+  const sel = t.value.slice(t.selectionStart, t.selectionEnd);
+  if (sel && !sel.includes('\n')) fIn.value = sel;
+  fIn.focus(); fIn.select(); recompute(true);
+}
+function closeFind(){ fOpen = false; find.hidden = true; fMatches = []; paintMarks(); tas[active]?.focus(); }
+function fRegex(){ try { fErr = ''; return buildRegex(fIn.value, fOpt); } catch (e) { fErr = 'Invalid expression'; return null; } }
+function recompute(jump){
+  const t = tas[active], rx = fRegex();
+  fMatches = t && rx ? findAll(t.value, rx, MAX_MATCHES) : [];
+  if (jump) { const c = t ? t.selectionStart : 0; fIdx = fMatches.findIndex(x => x[0] >= c); if (fIdx < 0) fIdx = fMatches.length ? 0 : -1; if (fIdx > -1) selectMatch(); }
+  else if (fIdx >= fMatches.length) fIdx = fMatches.length - 1;
+  if (fIdx < 0 && fMatches.length) fIdx = 0;
+  updateCount(); paintMarks();
+}
+function updateCount(){
+  fCount.classList.toggle('err', !!fErr);
+  fCount.textContent = fErr || (fMatches.length ? `${fIdx + 1} of ${fMatches.length}${fMatches.length >= MAX_MATCHES ? '+' : ''}` : (fIn.value ? 'No results' : ''));
+}
+function selectMatch(){
+  const t = tas[active], m = fMatches[fIdx]; if (!t || !m) return;
+  t.setSelectionRange(m[0], m[1]); scrollToPos(m[0]); caret(); updateCount(); paintMarks();
+}
+function stepMatch(dir){ if (!fMatches.length) return; fIdx = (fIdx + dir + fMatches.length) % fMatches.length; selectMatch(); }
+function paintMarks(){
+  const t = tas[active];
+  if (!t || !fOpen || !fMatches.length) { marks.innerHTML = ''; return; }
+  const v = t.value; let h = '', last = 0;
+  fMatches.forEach((m, i) => { h += esc(v.slice(last, m[0])) + `<mark${i === fIdx ? ' class="cur"' : ''}>${esc(v.slice(m[0], m[1]))}</mark>`; last = m[1]; });
+  marks.innerHTML = h + esc(v.slice(last)) + '\n';
+}
+function replaceOne(){
+  const t = tas[active], m = fMatches[fIdx], rx = fRegex(); if (!t || !m || !rx || t.readOnly) return;
+  insert(t, makeRep(rx, fOpt.re, rIn.value)(t.value.slice(m[0], m[1])), m[0], m[1]);
+  recompute(false); if (fIdx >= fMatches.length) fIdx = 0; selectMatch(); fIn.focus();
+}
+function replaceAllFile(){
+  const t = tas[active], rx = fRegex(); if (!t || !fMatches.length || !rx || t.readOnly) return;
+  const v = t.value, rep = makeRep(rx, fOpt.re, rIn.value), cnt = fMatches.length; let out = '', last = 0;
+  for (const m of fMatches) { out += v.slice(last, m[0]) + rep(v.slice(m[0], m[1])); last = m[1]; }
+  insert(t, out + v.slice(last), 0, v.length, 0);
+  recompute(false); toast(`Replaced ${cnt} match${cnt === 1 ? '' : 'es'}`); fIn.focus();
+}
+
+/* ---------- Search panel: search and replace in all files ---------- */
+const textOf = p => tas[p] ? tas[p].value : fs[p];
+function scheduleSearch(){ if (sideView !== 'search' || !sIn.value) return; clearTimeout(S.timer); S.timer = setTimeout(runSearch, 250); }
+function runSearch(){
+  clearTimeout(S.timer);
+  S.results = []; S.total = 0; S.limited = false; S.err = ''; S.rx = null;
+  const q = sIn.value;
+  if (q) {
+    try { S.rx = buildRegex(q, S); } catch (e) { S.err = String(e.message || 'Invalid regular expression').replace(/^Invalid regular expression: \/.*\/\w*: /, 'Invalid regular expression: '); }
+    let inc = [], exc = [];
+    try { inc = globList(sInc.value); exc = globList(sExc.value); } catch (e) { S.err = 'Invalid file pattern.'; }
+    if (S.rx && !S.err) {
+      const paths = Object.keys(fs).sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
+      for (const p of paths) {
+        if ((inc.length && !globMatch(inc, p)) || globMatch(exc, p)) continue;
+        const ms = findAll(textOf(p), S.rx, MAX_SEARCH_RESULTS - S.total);
+        if (!ms.length) continue;
+        S.results.push({ p, ms }); S.total += ms.length;
+        if (S.total >= MAX_SEARCH_RESULTS) { S.limited = true; break; }
+      }
+    }
+  }
+  renderSearch();
+}
+function previewHtml(text, m, repFn){
+  const ls = text.lastIndexOf('\n', m[0] - 1) + 1, le0 = text.indexOf('\n', m[0]), le = le0 < 0 ? text.length : le0;
+  const line = text.slice(ls, le), c0 = m[0] - ls, c1 = Math.min(m[1] - ls, line.length), from = Math.max(0, c0 - 28);
+  const head = (from ? '…' : '') + line.slice(from, c0).trimStart(), hit = line.slice(c0, c1), tail = line.slice(c1, c1 + 140);
+  return esc(head) + (repFn ? `<del>${esc(hit)}</del><ins>${esc(repFn(text.slice(m[0], m[1])))}</ins>` : `<mark>${esc(hit)}</mark>`) + esc(tail);
+}
+function renderSearch(){
+  const files = S.results.length;
+  sSummary.classList.toggle('err', !!S.err);
+  sSummary.textContent = S.err || (!sIn.value ? '' : S.total ? `${S.total} result${S.total === 1 ? '' : 's'} in ${files} file${files === 1 ? '' : 's'}${S.limited ? ' (the result limit was reached)' : ''}` : 'No results found.');
+  const repFn = S.showRep && S.rx ? makeRep(S.rx, S.re, sRep.value) : null;
+  let h = '', drawn = 0;
+  S.results.forEach((r, fi) => {
+    const open = !S.collapsed.has(r.p), text = textOf(r.p);
+    h += `<div class="sfile" data-f="${fi}" title="${esc(r.p)}"><span class="chev${open ? ' open' : ''}">${ic('chev', 14)}</span><span class="fi" style="color:${langOf(r.p).color}">${ic('file')}</span>`
+      + `<span>${esc(base(r.p))}</span><span class="dir">${esc(dirname(r.p))}</span>`
+      + (repFn ? `<button class="hov" data-rf="${fi}" title="Replace all in this file" aria-label="Replace all in ${esc(base(r.p))}">${ic('repAll', 14)}</button>` : '')
+      + `<span class="badge">${r.ms.length}</span></div>`;
+    if (!open) return;
+    r.ms.forEach((m, mi) => {
+      if (drawn++ >= MAX_RENDERED_MATCHES) return;
+      h += `<div class="smatch" data-f="${fi}" data-m="${mi}"><span class="pv">${previewHtml(text, m, repFn)}</span>`
+        + (repFn ? `<button class="hov" data-rm="${fi}:${mi}" title="Replace" aria-label="Replace this match">${ic('rep', 14)}</button>` : '') + '</div>';
+    });
+  });
+  if (drawn > MAX_RENDERED_MATCHES) h += `<p class="empty">Showing the first ${MAX_RENDERED_MATCHES} matches. Narrow the search to see more.</p>`;
+  sResults.innerHTML = h;
+}
+function openSearch(withReplace){
+  sideView = 'search'; app.classList.remove('noside');
+  if (withReplace) setRepVisible(true);
+  const t = tas[active];
+  if (t) { const sel = t.value.slice(t.selectionStart, t.selectionEnd); if (sel && !sel.includes('\n') && sel.length < 200) sIn.value = sel; }
+  renderSide(); persist(); sIn.focus(); sIn.select(); runSearch();
+}
+function setRepVisible(on){ S.showRep = on; $('#sRepRow').hidden = !on; $('#sToggle').setAttribute('aria-expanded', String(on)); renderSearch(); }
+function openMatch(fi, mi){
+  const r = S.results[fi]; if (!r) return;
+  const m = r.ms[mi] || r.ms[0];
+  openTab(r.p); const t = tas[r.p]; if (!t || !m) return;
+  t.focus(); t.setSelectionRange(m[0], m[1]); scrollToPos(m[0]); caret();
+  if (narrow()) { app.classList.add('noside'); renderSide(); }
+}
+// Replace inside one file's text. Open files get unsaved edits; closed files are saved directly.
+async function applyFileText(p, newText){
+  const t = tas[p];
+  if (t) {
+    if (p === active) insert(t, newText, 0, t.value.length, 0);
+    else { t.value = newText; }
+    updateDirty();
+    return true;
+  }
+  await putFile(p, newText);
+  return true;
+}
+function replacedText(text, ms, repFn){ let out = '', last = 0; for (const m of ms) { out += text.slice(last, m[0]) + repFn(text.slice(m[0], m[1])); last = m[1]; } return out + text.slice(last); }
+async function replaceInFiles(list){
+  if (!guardWrite() || !S.rx) return;
+  const repFn = makeRep(S.rx, S.re, sRep.value);
+  let n = 0, files = 0;
+  try {
+    await hold(() => busy(async () => {
+      for (const r of list) { const text = textOf(r.p); await applyFileText(r.p, replacedText(text, r.ms, repFn)); n += r.ms.length; files++; }
+    }));
+  } catch (e) { reportErr(e); }
+  render(); runSearch(); persist();
+  toast(`Replaced ${n} occurrence${n === 1 ? '' : 's'} in ${files} file${files === 1 ? '' : 's'}. Open files have unsaved changes to review.`);
+}
+async function replaceAllSearch(){
+  if (!S.total || !S.showRep) return;
+  const r = await modal('Replace all?', `Replace ${S.total} occurrence${S.total === 1 ? '' : 's'} across ${S.results.length} file${S.results.length === 1 ? '' : 's'} with "${sRep.value}"? Closed files are saved at once.`,
+    [{ l:'Replace', v:1, primary:1 }, { l:'Cancel', v:0 }]);
+  if (r) replaceInFiles(S.results);
+}
+
+/* ---------- conflict handling ---------- */
+function diffLines(a, b){
+  const A = a.split('\n'), B = b.split('\n'), n = A.length, m = B.length;
+  let s = 0; while (s < n && s < m && A[s] === B[s]) s++;
+  let e = 0; while (e < n - s && e < m - s && A[n - 1 - e] === B[m - 1 - e]) e++;
+  const a2 = A.slice(s, n - e), b2 = B.slice(s, m - e), N = a2.length, M = b2.length;
+  if (N * M > 4e6) return null;
+  const dp = Array.from({ length:N + 1 }, () => new Uint32Array(M + 1));
+  for (let i = N - 1; i >= 0; i--) for (let j = M - 1; j >= 0; j--) dp[i][j] = a2[i] === b2[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = []; for (let k = 0; k < s; k++) out.push([' ', A[k]]);
+  let i = 0, j = 0;
+  while (i < N && j < M) { if (a2[i] === b2[j]) { out.push([' ', a2[i]]); i++; j++; } else if (dp[i + 1][j] >= dp[i][j + 1]) out.push(['-', a2[i++]]); else out.push(['+', b2[j++]]); }
+  while (i < N) out.push(['-', a2[i++]]); while (j < M) out.push(['+', b2[j++]]);
+  for (let k = n - e; k < n; k++) out.push([' ', A[k]]);
+  return out;
+}
+function diffHtml(rows){
+  if (!rows) return '<div class="f">The files are too large to compare here.</div>';
+  let h = '', run = [];
+  const flush = () => {
+    if (run.length > 8) h += run.slice(0, 3).map(r => `<div>  ${esc(r)}</div>`).join('') + `<div class="f">  … ${run.length - 6} unchanged lines …</div>` + run.slice(-3).map(r => `<div>  ${esc(r)}</div>`).join('');
+    else h += run.map(r => `<div>  ${esc(r)}</div>`).join('');
+    run = [];
+  };
+  for (const [k, l] of rows) { if (k === ' ') { run.push(l); continue; } flush(); h += `<div class="${k === '+' ? 'a' : 'd'}">${k} ${esc(l)}</div>`; }
+  flush(); return h;
+}
+async function conflictAction(c){
+  const p = active; if (!p || !isConflict(p)) return;
+  const deleted = !(p in fs);
+  if (c === 'compare') {
+    const r = await modal(`Compare "${base(p)}"`, `− only in the project version (${who(p)})   + only in your unsaved version`,
+      deleted ? [{ l:'Keep mine', v:'mine', primary:1 }, { l:'Close', v:null }] : [{ l:'Load their version', v:'theirs' }, { l:'Keep mine', v:'mine', primary:1 }, { l:'Close', v:null }],
+      `<pre class="diff">${diffHtml(diffLines(deleted ? '' : fs[p], tas[p].value))}</pre>`);
+    if (!r) return; c = r;
+  }
+  if (c === 'theirs') {
+    if (deleted) { dropTab(p); return; }
+    replaceBuffer(p, fs[p]); tabBase[p] = { rev:meta[p].rev, content:fs[p] };
+  } else if (c === 'mine') {
+    // Deleted file: keep the tab dirty (sentinel base text) so the next save recreates it.
+    if (deleted) { keepDeleted.add(p); tabBase[p] = { rev:0, content:'\u0000' }; }
+    else tabBase[p] = { rev:meta[p].rev, content:fs[p] };
+  }
+  updateDirty(); renderConflict(); renderTabs(); persist();
+}
+
+/* ---------- comments on selections (stored in the project database) ---------- */
+function mdLite(src){
+  const parts = String(src).split(/```([\w+-]*)\n?([\s\S]*?)(?:```|$)/);
+  let h = '';
+  for (let i = 0; i < parts.length; i += 3) {
+    const prose = parts[i] || '';
+    h += prose.split(/\n{2,}/).filter(s => s.trim()).map(par => '<p>' + esc(par)
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+      .replace(/\n/g, '<br>') + '</p>').join('');
+    if (i + 2 < parts.length) h += `<pre><button data-copy>Copy</button><code>${esc(parts[i + 2] || '')}</code></pre>`;
+  }
+  return h;
+}
+const fmtTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString(undefined, { hour:'2-digit', minute:'2-digit', month:'short', day:'numeric' }); };
+const langIcon = p => `<span class="fi" style="color:${langOf(p).color}">${ic('file')}</span>`;
+function countNl(t, a, b){ let n = 0, i = t.indexOf('\n', a); while (i > -1 && i < b) { n++; i = t.indexOf('\n', i + 1); } return n; }
+// Find where a comment's quoted text is now: the occurrence nearest to its original line.
+function anchorOf(c){
+  if (!(c.path in fs) && !tas[c.path]) return { gone:true };
+  const text = textOf(c.path), q = c.quote, want = +c.startLine || 1;
+  if (!q || !text) return { outdated:true };
+  let best = -1, bestD = Infinity, line = 1, from = 0, i = text.indexOf(q);
+  while (i > -1) {
+    line += countNl(text, from, i); from = i;
+    const d = Math.abs(line - want);
+    if (d < bestD) { bestD = d; best = i; if (d === 0) break; } else if (line > want) break;
+    i = text.indexOf(q, i + 1);
+  }
+  if (best < 0) return { outdated:true };
+  const l1 = countLines(text.slice(0, best)), l2 = l1 + countNl(q, 0, q.length) - (q.endsWith('\n') ? 1 : 0);
+  return { s:best, e:best + q.length, l1, l2 };
+}
+function paintComments(){
+  const t = tas[active];
+  if (!t || !cm.available) { cmk.innerHTML = ''; chl.innerHTML = ''; return; }
+  const v = t.value, ranges = [], at = new Map();
+  for (const c of cm.list) {
+    if (c.path !== active || c.status === 'resolved') continue;
+    const a = anchorOf(c); if (a.s == null) continue;
+    ranges.push([a.s, a.e]);
+    if (!at.has(a.l1)) at.set(a.l1, []); at.get(a.l1).push(c);
+  }
+  ranges.sort((x, y) => x[0] - y[0]);
+  let h = '', last = 0;
+  for (const [s0, e0] of ranges) { const s = Math.max(s0, last); if (e0 <= s) continue; h += esc(v.slice(last, s)) + '<span>' + esc(v.slice(s, e0)) + '</span>'; last = e0; }
+  chl.innerHTML = ranges.length ? h + esc(v.slice(last)) + '\n' : '';
+  cmk.innerHTML = [...at].map(([l, cs]) => { const refs = cs.map(c => '#' + c.n).join(', ');
+    return `<button data-cm="${esc(cs[0].id)}" style="top:${PAD_T + (l - 1) * LH}px;height:${LH}px" title="Comment ${esc(refs)}" aria-label="Show comment ${esc(refs)}">${ic('cmt', 13)}</button>`; }).join('');
+}
+const editBox = (id, kind, val, label) => `<div class="cedit"><textarea data-for="${esc(id)}" data-kind="${kind}" aria-label="${kind === 'edit' ? 'Edit comment' : 'Reply'}" placeholder="${keyText('submit')} saves">${esc(val)}</textarea>`
+  + `<div class="crow"><button class="btn" data-act="cancel">Cancel</button><button class="btn primary" data-act="${kind === 'edit' ? 'saveEdit' : 'saveReply'}">${label}</button></div></div>`;
+function cardHtml(c, a){
+  const res = c.status === 'resolved', mine = c.by !== 'claude';
+  const loc = a.gone ? 'file deleted' : a.outdated ? `line ${+c.startLine || 1}` : `line ${a.l1}${a.l2 > a.l1 ? '–' + a.l2 : ''}`;
+  const q = c.quote.length > 600 ? c.quote.slice(0, 600) + '…' : c.quote;
+  const replies = Array.isArray(c.replies) ? c.replies.filter(r => r && typeof r.text === 'string') : [];
+  return `<div class="card${res ? ' res' : ''}${cm.flash === c.id ? ' flash' : ''}" data-id="${esc(c.id)}">`
+    + `<div class="chead" data-act="jump" title="Show in the editor"><b>#${+c.n}</b><span>${esc(loc)}</span><span class="grow"></span><span>${mine ? 'You' : 'Claude'} · ${esc(fmtTime(c.at))}</span></div>`
+    + (a.gone ? '<span class="tag">File deleted</span> ' : a.outdated ? '<span class="tag">Outdated: the text changed</span> ' : '')
+    + (res ? `<span class="tag">Resolved${c.resolvedBy === 'claude' ? ' by Claude' : ''}</span>` : '')
+    + `<div class="quote" data-act="jump" title="Show in the editor">${esc(q)}</div>`
+    + (cm.editing === c.id ? editBox(c.id, 'edit', c.text, 'Save') : `<div class="ctext">${mdLite(c.text)}</div>`)
+    + replies.map(r => `<div class="reply${r.by === 'claude' ? ' claude' : ''}"><div class="who">${r.by === 'claude' ? 'Claude' : 'You'} · ${esc(fmtTime(r.at))}</div><div class="ctext">${mdLite(r.text)}</div></div>`).join('')
+    + (cm.replying === c.id ? editBox(c.id, 'reply', '', 'Reply') : '')
+    + '<div class="cacts">'
+    + (store.canWrite ? `<button data-act="reply">Reply</button>${mine ? '<button data-act="edit">Edit</button>' : ''}<button data-act="${res ? 'reopen' : 'resolve'}">${res ? 'Reopen' : 'Resolve'}</button>` : '')
+    + `<button data-act="copy" title="Copy the reference for the conversation">Copy #${+c.n}</button>`
+    + (store.canWrite ? '<button data-act="delete">Delete</button>' : '') + '</div></div>';
+}
+function renderComments(){
+  const open = cm.list.filter(c => c.status !== 'resolved'), resN = cm.list.length - open.length;
+  for (const b of document.querySelectorAll('.cfilter button')) {
+    const f = b.dataset.f, n = f === 'open' ? open.length : f === 'resolved' ? resN : cm.list.length;
+    b.setAttribute('aria-pressed', String(f === cm.filter)); b.textContent = `${f[0].toUpperCase() + f.slice(1)} (${n})`;
+  }
+  const btn = $('#btnChat'); let cnt = btn.querySelector('.cnt');
+  if (open.length) { if (!cnt) { cnt = document.createElement('span'); cnt.className = 'cnt'; btn.appendChild(cnt); } cnt.textContent = open.length > 99 ? '99+' : String(open.length); }
+  else if (cnt) cnt.remove();
+  if (!cm.available) { clist.innerHTML = `<p class="empty">${store.mode === 'connecting' ? 'Connecting…' : 'Comments need the project database, which is not available here.'}</p>`; return; }
+  const shown = cm.list.filter(c => cm.filter === 'all' || (cm.filter === 'open') === (c.status !== 'resolved'));
+  // Keep text that is being typed in reply or edit boxes across re-renders.
+  const drafts = [...clist.querySelectorAll('textarea[data-for]')].map(t => ({ id:t.dataset.for, kind:t.dataset.kind, v:t.value, f:document.activeElement === t, s:t.selectionStart, e:t.selectionEnd }));
+  const top = clist.scrollTop;
+  if (!shown.length) clist.innerHTML = `<p class="empty">${cm.filter === 'resolved' ? 'No resolved comments.' : `No open comments. Select text in a file and press ${keyText('addComment')} or the Comment button.`}</p>`;
+  else {
+    const groups = new Map();
+    for (const c of shown) { if (!groups.has(c.path)) groups.set(c.path, []); groups.get(c.path).push([c, anchorOf(c)]); }
+    let h = '';
+    for (const p of [...groups.keys()].sort()) {
+      const items = groups.get(p).sort((x, y) => ((x[1].l1 ?? +x[0].startLine) - (y[1].l1 ?? +y[0].startLine)) || (x[0].n - y[0].n));
+      h += `<div class="cfile">${langIcon(p)}<span title="${esc(p)}">${esc(p)}</span></div>` + items.map(([c, a]) => cardHtml(c, a)).join('');
+    }
+    clist.innerHTML = h;
+  }
+  for (const d of drafts) {
+    const t = clist.querySelector(`textarea[data-for="${CSS.escape(d.id)}"][data-kind="${d.kind}"]`);
+    if (t) { t.value = d.v; if (d.f) { t.focus(); t.setSelectionRange(d.s, d.e); } }
+  }
+  clist.scrollTop = top;
+}
+function scheduleComments(){ clearTimeout(cm.timer); cm.timer = setTimeout(() => { if (app.classList.contains('chat')) renderComments(); }, 400); }
+function toggleCm(force){
+  const on = force ?? !app.classList.contains('chat');
+  app.classList.toggle('chat', on);
+  if (on && narrow()) app.classList.add('noside');
+  renderSide(); renderComments(); persist();
+}
+function showComment(id){
+  const c = cm.list.find(x => x.id === id); if (!c) return;
+  if (c.status === 'resolved' && cm.filter === 'open') cm.filter = 'all';
+  if (c.status !== 'resolved' && cm.filter === 'resolved') cm.filter = 'open';
+  cm.flash = id; toggleCm(true);
+  const el = clist.querySelector(`.card[data-id="${CSS.escape(id)}"]`); el?.scrollIntoView({ block:'nearest' });
+  setTimeout(() => { if (cm.flash === id) { cm.flash = null; clist.querySelector(`.card[data-id="${CSS.escape(id)}"]`)?.classList.remove('flash'); } }, 1600);
+}
+function jumpTo(c){
+  if (!(c.path in fs)) { toast('That file is no longer in the project.'); return; }
+  openTab(c.path);
+  const t = tas[c.path], a = anchorOf(c); if (!t) return;
+  if (a.s != null) { t.focus(); t.setSelectionRange(a.s, a.e); scrollToPos(a.s); caret(); } else gotoLine(+c.startLine || 1);
+  if (narrow()) { app.classList.remove('chat'); renderSide(); }
+}
+function openComposer(){
+  const t = tas[active]; if (!t) return;
+  if (!cm.available) { toast('Comments need the project database, which is not available here.', 'err'); return; }
+  if (!guardWrite()) return;
+  let s = t.selectionStart, e = t.selectionEnd;
+  if (s === e) { s = t.value.lastIndexOf('\n', s - 1) + 1; const j = t.value.indexOf('\n', e); e = j < 0 ? t.value.length : j; }
+  const quote = t.value.slice(s, e);
+  if (!quote.trim()) { toast('Select some text first.'); return; }
+  if (quote.length > MAX_QUOTE_CHARS) { toast('The selection is too large for a comment (limit 20,000 characters).', 'err'); return; }
+  const l1 = posOf(s).line + 1, l2 = posOf(Math.max(s, e - 1)).line + 1;
+  cm.draft = { path:active, quote, startLine:l1, endLine:l2, unsaved:isDirty(active) };
+  cbox.innerHTML = `<div class="lbl">Comment on ${esc(base(active))}, line ${l1}${l2 > l1 ? '–' + l2 : ''}${cm.draft.unsaved ? ' (unsaved text)' : ''}</div>`
+    + `<textarea id="cboxIn" placeholder="What should Claude look at? ${keyText('submit')} saves." aria-label="Comment"></textarea>`
+    + '<div class="crow"><button class="btn" data-x="cancel">Cancel</button><button class="btn primary" data-x="save">Comment</button></div>';
+  askPill.hidden = true; cbox.hidden = false;
+  const gw = parseFloat(getComputedStyle($('#gutter')).width) || 40, hBox = cbox.offsetHeight;
+  let y = PAD_T + l2 * LH - t.scrollTop + 4;
+  if (y + hBox > code.clientHeight - 8) y = PAD_T + (l1 - 1) * LH - t.scrollTop - hBox - 4;
+  cbox.style.left = Math.max(4, Math.min(gw + 8, code.clientWidth - cbox.offsetWidth - 8)) + 'px';
+  cbox.style.top = Math.max(4, Math.min(y, code.clientHeight - hBox - 4)) + 'px';
+  $('#cboxIn').focus();
+}
+function closeComposer(){ if (cbox.hidden) return; cbox.hidden = true; cm.draft = null; }
+async function saveComposer(){
+  const d = cm.draft, inp = $('#cboxIn'); if (!d || !inp) return;
+  const text = inp.value.trim();
+  if (!text) { inp.focus(); return; }
+  if (text.length > MAX_COMMENT_CHARS) { toast('The comment is too long (limit 20,000 characters).', 'err'); return; }
+  const n = cm.list.reduce((m, c) => Math.max(m, +c.n || 0), 0) + 1;
+  const id = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  try {
+    await busy(() => withRetry(() => store.db.doc('comments/' + id).set({ n, path:d.path, startLine:d.startLine, endLine:d.endLine, quote:d.quote, text,
+      at:new Date().toISOString(), by:'you', status:'open', replies:[], unsaved:d.unsaved })));
+    closeComposer(); tas[active]?.focus();
+    toast(`Comment #${n} added. Mention #${n} to Claude in the conversation.`);
+  } catch (e) { reportErr(e); }
+}
+async function updateComment(id, data){
+  try { await busy(() => withRetry(() => store.db.doc('comments/' + id).update(data))); return true; }
+  catch (e) { reportErr(e); return false; }
+}
+// Keep comments attached to files that are renamed or moved.
+async function moveComments(o, n){
+  if (store.mode !== 'db') return;
+  for (const c of cm.list) {
+    const q = c.path === o ? n : c.path.startsWith(o + '/') ? n + c.path.slice(o.length) : null;
+    if (q) await updateComment(c.id, { path:q });
+  }
+}
+async function commentAction(act, id, card){
+  const c = cm.list.find(x => x.id === id); if (!c) return;
+  if (act === 'jump') return jumpTo(c);
+  if (act === 'copy') return copyText('#' + c.n);
+  if (act === 'cancel') { cm.replying = cm.editing = null; renderComments(); return; }
+  if (!guardWrite()) return;
+  if (act === 'reply' || act === 'edit') {
+    cm.replying = act === 'reply' ? id : null; cm.editing = act === 'edit' ? id : null; renderComments();
+    clist.querySelector(`textarea[data-for="${CSS.escape(id)}"]`)?.focus(); return;
+  }
+  if (act === 'saveReply' || act === 'saveEdit') {
+    const ta = card.querySelector('textarea[data-for]'), text = ta ? ta.value.trim() : '';
+    if (!text) return;
+    if (text.length > MAX_COMMENT_CHARS) { toast('Too long (limit 20,000 characters).', 'err'); return; }
+    const now = new Date().toISOString();
+    const ok = act === 'saveEdit' ? await updateComment(id, { text, edited:now })
+      : await updateComment(id, { replies:[...(Array.isArray(c.replies) ? c.replies : []), { by:'you', text, at:now }] });
+    if (ok) { cm.replying = cm.editing = null; ta.value = ''; renderComments(); }
+    return;
+  }
+  if (act === 'resolve') { await updateComment(id, { status:'resolved', resolvedBy:'you', resolvedAt:new Date().toISOString() }); return; }
+  if (act === 'reopen') { await updateComment(id, { status:'open' }); return; }
+  if (act === 'delete') {
+    const r = await modal(`Delete comment #${c.n}?`, 'This deletes the comment and its replies. You cannot undo this.', [{ l:'Delete', v:1, danger:1 }, { l:'Cancel', v:0 }]);
+    if (r) { try { await busy(() => withRetry(() => store.db.doc('comments/' + id).delete())); } catch (e) { reportErr(e); } }
+  }
+}
+function placePill(){
+  const t = tas[active];
+  if (!t || !cm.available || !cbox.hidden || document.activeElement !== t || t.selectionStart === t.selectionEnd || t.readOnly) { askPill.hidden = true; return; }
+  const p = posOf(t.selectionDirection === 'backward' ? t.selectionStart : t.selectionEnd);
+  const gw = parseFloat(getComputedStyle($('#gutter')).width) || 40;
+  let x = gw + 8 + p.col * CW - t.scrollLeft + 12, y = PAD_T + p.line * LH - t.scrollTop - 30;
+  if (y < 4) y = PAD_T + (p.line + 1) * LH - t.scrollTop + 6;
+  x = Math.max(gw + 4, Math.min(x, code.clientWidth - 120));
+  if (y > code.clientHeight - 30 || y < 0) { askPill.hidden = true; return; }
+  askPill.style.left = x + 'px'; askPill.style.top = y + 'px'; askPill.hidden = false;
+}
+
+/* ---------- explorer actions ---------- */
+function targetDir(){ return selPath ? (dirs.has(selPath) ? selPath : dirname(selPath)) : ''; }
+function expandTo(p){ let d = p; while (d) { expanded.add(d); d = dirname(d); } }
+function showView(v){
+  if (!app.classList.contains('noside') && sideView === v) app.classList.add('noside');
+  else { sideView = v; app.classList.remove('noside'); if (narrow()) app.classList.remove('chat'); }
+  renderSide(); persist();
+  if (sideView === 'search' && !app.classList.contains('noside')) { sIn.focus(); runSearch(); }
+}
+function startNew(mode){ if (!guardWrite()) return; const parent = targetDir(); if (parent) expandTo(parent); pending = { mode, parent }; sideView = 'explorer'; app.classList.remove('noside'); renderSide(); renderTree(); }
+function startRename(p){ if (!guardWrite()) return; expandTo(dirname(p)); pending = { mode:'rename', path:p }; sideView = 'explorer'; app.classList.remove('noside'); renderSide(); renderTree(); }
+function validName(v, allowSlash){
+  if (!v || v.includes('\\') || (!allowSlash && v.includes('/'))) return false;
+  return v.split('/').every(s => s && s !== '.' && s !== '..');
+}
+function bindInput(inp){
+  inp.focus();
+  if (pending && pending.mode === 'rename') { const v = inp.value, dot = v.lastIndexOf('.'); inp.setSelectionRange(0, dot > 0 && !dirs.has(pending.path) ? dot : v.length); }
+  let done = false;
+  const fin = ok => { if (done) return; done = true; if (ok) commitPending(inp.value); else { pending = null; renderTree(); tree.focus(); } };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); fin(true); } else if (e.key === 'Escape') { e.preventDefault(); fin(false); } });
+  inp.addEventListener('blur', () => fin(true));
+}
+function fail(msg){ toast(msg, 'err'); renderTree(); }
+async function commitPending(raw){
+  const pd = pending; pending = null;
+  const v = raw.trim().replace(/^\/+|\/+$/g, '');
+  if (!pd || !v) { renderTree(); return; }
+  if (pd.mode === 'rename') {
+    if (v === base(pd.path)) { renderTree(); return; }
+    if (!validName(v, false)) return fail('Use a name without "/" or "\\".');
+    const np = join(dirname(pd.path), v);
+    if (np in fs || dirs.has(np)) return fail(`"${v}" already exists here.`);
+    await moveStore(pd.path, np);
+    return;
+  }
+  if (!validName(v, true)) return fail('That name is not valid.');
+  const np = join(pd.parent, v);
+  if (np in fs || dirs.has(np)) return fail(`"${v}" already exists here.`);
+  if (!idOK(np)) return fail('That path is too long.');
+  if (pd.mode === 'dir') { explicitDirs.add(np); recomputeDirs(); expandTo(np); selPath = np; render(); await writeDirs(); persist(); return; }
+  renderTree();
+  try {
+    const rev = await busy(() => writeFile(np, '', null));
+    fs[np] = ''; meta[np] = { rev, by:'you' }; recomputeDirs(); expandTo(dirname(np)); openTab(np);
+  } catch (e) { reportErr(e); renderTree(); }
+}
+function movePath(o, n){
+  const map = p => p === o ? n : p.startsWith(o + '/') ? n + p.slice(o.length) : p;
+  const nfs = {}, nmeta = {}; for (const p in fs) { nfs[map(p)] = fs[p]; nmeta[map(p)] = meta[p]; } fs = nfs; meta = nmeta;
+  explicitDirs = new Set([...explicitDirs].map(map)); expanded = new Set([...expanded].map(map)); tabs = tabs.map(map);
+  for (const p of Object.keys(tas)) {
+    const q = map(p); if (q === p) continue;
+    tas[q] = tas[p]; delete tas[p]; tas[q].setAttribute('aria-label', 'Editor: ' + q);
+    tabBase[q] = tabBase[p]; delete tabBase[p];
+    if (view[p]) { view[q] = view[p]; delete view[p]; }
+  }
+  if (active) active = map(active); if (selPath) selPath = map(selPath);
+  recomputeDirs();
+}
+async function moveStore(o, n){
+  const affected = Object.keys(fs).filter(p => p === o || p.startsWith(o + '/'));
+  const map = p => p === o ? n : n + p.slice(o.length);
+  if (affected.some(p => !idOK(map(p)))) return fail('A new path would be too long.');
+  if (dirs.has(o)) explicitDirs.add(o);   // keep the renamed folder even if it is empty
+  await hold(() => busy(async () => {
+    movePath(o, n);
+    if (store.mode === 'db') {
+      for (const p of affected) {
+        const q = map(p);
+        try { const rev = await writeFile(q, fs[q], null); if (tabBase[q]) tabBase[q].rev = rev; await withRetry(() => store.db.doc('files/' + docId(p)).delete()); }
+        catch (e) { reportErr(e); break; }
+      }
+    }
+    await writeDirs();
+    await moveComments(o, n);
+  }));
+  render(); persist(); scheduleSearch(); paintComments();
+}
+async function del(p){
+  if (!guardWrite()) return;
+  const isDir = dirs.has(p), files = isDir ? Object.keys(fs).filter(f => f.startsWith(p + '/')) : [p];
+  const r = await modal(`Delete "${base(p)}"?`, (isDir ? `This deletes the folder and the ${files.length} file${files.length === 1 ? '' : 's'} in it. ` : '') + 'You cannot undo this.',
+    [{ l:'Delete', v:1, danger:1 }, { l:'Cancel', v:0 }]);
+  if (!r) return;
+  const hit = q => q === p || q.startsWith(p + '/');
+  await hold(() => busy(async () => {
+    for (const f of files) { try { await deleteFile(f); } catch (e) { reportErr(e); break; } }
+    for (const t of [...tabs]) if (hit(t) && !(t in fs)) dropTab(t, true);
+    explicitDirs = new Set([...explicitDirs].filter(d => !hit(d))); expanded = new Set([...expanded].filter(d => !hit(d)));
+    recomputeDirs(); await writeDirs();
+  }));
+  selPath = dirname(p) || null;
+  if (!tabs.includes(active)) { active = null; if (tabs.length) { setActive(tabs[0]); return; } }
+  render(); persist(); scheduleSearch();
+}
+async function importEntries(entries, label){
+  if (!guardWrite()) return;
+  let ok = 0, skip = 0;
+  await hold(() => busy(async () => {
+    for (const [p, text] of entries) {
+      if (ok >= MAX_IMPORT_FILES || !validName(p, true) || !idOK(p) || dirs.has(p) || text.length > MAX_DOC_CHARS) { skip++; continue; }
+      try { await putFile(p, text); ok++; } catch (e) { if (e && e.code === 'conflict') { skip++; continue; } reportErr(e); break; }
+    }
+  }));
+  recomputeDirs();
+  const tops = new Set(entries.map(([p]) => p.split('/')[0])); for (const t of tops) if (dirs.has(t)) expanded.add(t);
+  render(); persist(); scheduleSearch();
+  toast(`${label}: ${ok} file${ok === 1 ? '' : 's'}` + (skip ? `. Skipped ${skip}.` : '.'));
+  return ok;
+}
+async function doImport(files){
+  const parent = targetDir(), entries = []; let skip = 0;
+  for (const f of files) {
+    const rel = (f.webkitRelativePath || f.name).replace(/^\/+/, '');
+    if (/(^|\/)(\.git|node_modules|\.pio)(\/|$)/.test(rel) || f.size > MAX_IMPORT_BYTES || !validName(rel, true)) { skip++; continue; }
+    let text; try { text = await f.text(); } catch (_) { skip++; continue; }
+    if (text.slice(0, 8000).includes('\u0000')) { skip++; continue; }
+    entries.push([join(parent, rel), text.replace(/\r\n?/g, '\n')]);
+  }
+  if (parent) expandTo(parent);
+  await importEntries(entries, 'Imported');
+  if (skip) toast(`Skipped ${skip} file${skip === 1 ? '' : 's'} (binary, too large, or in a .git, node_modules or .pio folder).`);
+}
+async function migrateLocal(){
+  const d = readJSON(LOCAL_KEY); if (!d || !d.fs) return;
+  const entries = Object.entries(d.fs).filter(([, v]) => typeof v === 'string');
+  const n = await importEntries(entries, 'Moved into the project');
+  if (n === entries.length) { try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} render(); }
+}
+async function loadSample(){ await importEntries(Object.entries(SAMPLE), 'Loaded the sample project'); expanded.add('weather-station'); expanded.add('weather-station/src'); renderTree(); }
+async function copyText(s){
+  try { await navigator.clipboard.writeText(s); toast('Copied to the clipboard'); }
+  catch (e) {
+    const t = document.createElement('textarea'); t.value = s; document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+    t.remove(); toast(ok ? 'Copied to the clipboard' : 'The browser blocked the copy', ok ? '' : 'err');
+  }
+}
+async function resetWorkspace(){
+  if (store.mode !== 'local') return;
+  const r = await modal('Reset the workspace?', 'This replaces all files in this browser with the sample project. You cannot undo this.', [{ l:'Reset', v:1, danger:1 }, { l:'Cancel', v:0 }]);
+  if (!r) return;
+  for (const p of [...tabs]) dropTab(p, true);
+  fs = { ...SAMPLE }; meta = {}; for (const p in fs) meta[p] = { rev:0 }; explicitDirs = new Set(); recomputeDirs();
+  expanded = new Set(['weather-station', 'weather-station/src']);
+  openTab('weather-station/README.md', false); openTab('weather-station/src/main.cpp');
+  toast('Sample workspace restored');
+}
+
+/* ---------- small UI parts ---------- */
+function toast(m, kind){ const d = document.createElement('div'); d.className = 'toast ' + (kind || ''); d.textContent = m; toasts.appendChild(d); setTimeout(() => d.remove(), 4200); }
+function modal(title, msg, btns, bodyHtml){
+  return new Promise(res => {
+    const back = document.activeElement;
+    md.innerHTML = `<div class="box${bodyHtml ? ' wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="mdT"><h2 id="mdT">${esc(title)}</h2><p>${esc(msg)}</p>${bodyHtml || ''}<div class="btns">`
+      + btns.map((b, i) => `<button class="btn${b.primary ? ' primary' : ''}${b.danger ? ' danger' : ''}" data-i="${i}">${esc(b.l)}</button>`).join('') + '</div></div>';
+    md.hidden = false; (md.querySelector('.btn.primary') || md.querySelector('.btn')).focus();
+    const done = v => { md.hidden = true; md.onclick = md.onkeydown = null; if (back && back.isConnected) back.focus(); res(v); };
+    md.onclick = e => { const b = e.target.closest('button[data-i]'); if (b) done(btns[b.dataset.i].v); else if (e.target === md) done(null); };
+    md.onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape') done(null); };
+  });
+}
+function showMenu(x, y, items){
+  menu._items = items;
+  menu.innerHTML = items.map((it, i) => it === '-' ? '<hr>' : `<button role="menuitem" data-i="${i}"><span>${esc(it.l)}</span>${it.k ? `<kbd>${esc(it.k)}</kbd>` : ''}</button>`).join('');
+  menu.hidden = false; menu.style.left = '0px'; menu.style.top = '0px';
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px';
+  menu.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+  menu.querySelector('button')?.focus();
+}
+function hideMenu(){ menu.hidden = true; }
+function treeMenu(p){
+  const items = [{ l:'New file', k:keyText('newFile'), f:() => startNew('file') }, { l:'New folder', f:() => startNew('dir') }];
+  if (p) items.push('-', { l:'Rename', k:'F2', f:() => startRename(p) }, { l:'Delete', k:'Del', f:() => del(p) }, '-', { l:'Copy path', f:() => copyText(p) });
+  if (p && dirs.has(p)) items.push({ l:'Find in folder…', f:() => { sInc.value = p + '/'; openSearch(false); } });
+  return items;
+}
+function fuzzy(q, p){
+  if (!q) return 0;
+  const s = p.toLowerCase(); let i = 0, score = 0, last = -2;
+  for (const c of q) { const j = s.indexOf(c, i); if (j < 0) return -1; score += j === last + 1 ? 3 : 1; last = j; i = j + 1; }
+  if (base(s).includes(q)) score += 10;
+  return score;
+}
+function openQO(prefix = ''){ qo.hidden = false; qoIn.value = prefix; qoSel = 0; renderQO(); qoIn.focus(); }
+function closeQO(){ qo.hidden = true; tas[active]?.focus(); }
+function renderQO(){
+  const q = qoIn.value.trim().toLowerCase();
+  if (q.startsWith('>')) {
+    const f = q.slice(1).trim();
+    qoItems = CMDS.map(c => [fuzzy(f, c.l.toLowerCase()), c]).filter(x => x[0] > -1).sort((a, b) => b[0] - a[0] || a[1].l.localeCompare(b[1].l)).map(x => x[1].id);
+    qoSel = Math.min(qoSel, Math.max(0, qoItems.length - 1));
+    qoList.innerHTML = qoItems.map((id, i) => { const c = CMDS.find(x => x.id === id), kt = KEYMAP[id] ? keyText(id) : ''; return `<li role="option" data-i="${i}" class="${i === qoSel ? 'on' : ''}" aria-selected="${i === qoSel}"><b>${esc(c.l)}</b><span class="grow"></span>${kt ? `<kbd>${esc(kt)}</kbd>` : ''}</li>`; }).join('') || '<li>No matching commands</li>';
+    qoList.querySelector('li.on')?.scrollIntoView({ block:'nearest' });
+    return;
+  }
+  if (q.startsWith(':')) { qoItems = []; qoList.innerHTML = `<li class="on">${active ? `Go to line ${esc(q.slice(1) || '…')} in ${esc(base(active))}` : 'Open a file first'}</li>`; return; }
+  qoItems = Object.keys(fs).map(p => [fuzzy(q, p), p]).filter(x => x[0] > -1).sort((a, b) => b[0] - a[0] || a[1].localeCompare(b[1])).slice(0, 60).map(x => x[1]);
+  qoSel = Math.min(qoSel, Math.max(0, qoItems.length - 1));
+  qoList.innerHTML = qoItems.map((p, i) => `<li role="option" data-i="${i}" class="${i === qoSel ? 'on' : ''}" aria-selected="${i === qoSel}"><span class="fi" style="color:${langOf(p).color}">${ic('file')}</span><b>${esc(base(p))}</b><span>${esc(dirname(p))}</span></li>`).join('')
+    || '<li>No matching files</li>';
+  qoList.querySelector('li.on')?.scrollIntoView({ block:'nearest' });
+}
+function qoPick(i){
+  const q = qoIn.value.trim();
+  if (q.startsWith('>')) { const id = qoItems[i]; if (!id) return; qo.hidden = true; tas[active]?.focus(); runCmd(id); return; }
+  if (q.startsWith(':')) { const n = parseInt(q.slice(1), 10); qo.hidden = true; gotoLine(n); return; }
+  const p = qoItems[i]; if (!p) return; qo.hidden = true; openTab(p);
+}
+
+/* ---------- keyboard: one keymap for Windows, Linux and macOS ---------- */
+// Shortcuts use only Ctrl (Windows, Linux) or Command (macOS), Shift, F-keys and Ctrl+K / Command+K chords.
+// Alt and Option are not used: on many layouts they type characters (AltGr, Option+N = "~" on a German Mac).
+const IS_MAC = /mac|iphone|ipad|ipod/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || '');
+const CHORD_TIMEOUT_MS = 3000;
+const KEYMAP = {          // display specs: 'mod' = Ctrl or Command, 'chord' = Ctrl+K or Command+K first
+  save:['mod','S'], saveAll:['mod','shift','S'], quickOpen:['mod','P'], palette:['mod','shift','P'],
+  gotoLine:IS_MAC ? ['ctrl','G'] : ['mod','G'], find:['mod','F'], searchFiles:['mod','shift','F'], replaceFiles:['mod','shift','H'],
+  comment:['mod','/'], sidebar:['mod','B'], newFile:['chord','N'], closeTab:['chord','W'], addComment:['chord','C'],
+  comments:['chord','M'], prevTab:['chord','←'], nextTab:['chord','→'], replaceAll:['mod','alt','Enter'], submit:['mod','Enter']
+};
+function keyParts(id){
+  const spec = KEYMAP[id]; if (!spec) return [];
+  const sym = { mod:IS_MAC ? '⌘' : 'Ctrl', shift:IS_MAC ? '⇧' : 'Shift', ctrl:IS_MAC ? '⌃' : 'Ctrl', alt:IS_MAC ? '⌥' : 'Alt', Enter:IS_MAC ? '↩' : 'Enter' };
+  if (spec[0] === 'chord') return [[sym.mod, 'K'], [spec[1]]];
+  return [spec.map(x => sym[x] || x)];
+}
+const keyText = id => keyParts(id).map(g => g.join(IS_MAC ? '' : '+')).join(' ');
+const keyKbd = id => keyParts(id).map(g => g.map(x => `<kbd>${esc(x)}</kbd>`).join(' ')).join(' then ');
+// The key as printed on the keyboard; falls back to the physical key for non-Latin layouts and dead keys.
+function keyName(e){
+  const k = e.key || '';
+  if (/^[a-z]$/i.test(k)) return k.toLowerCase();
+  if (/^Key[A-Z]$/.test(e.code || '') && !/^[\x20-\x7e]$/.test(k)) return e.code.slice(3).toLowerCase();
+  return k.length === 1 ? k : k.toLowerCase();
+}
+// AltGr types characters ("@", "{", "ś"). Windows reports it as Ctrl+Alt.
+const isAltGr = e => (e.getModifierState && e.getModifierState('AltGraph')) || (!IS_MAC && e.ctrlKey && e.altKey);
+const isPrimary = e => IS_MAC ? (e.metaKey && !e.ctrlKey) : (e.ctrlKey && !e.metaKey);
+
+const CMDS = [
+  { id:'quickOpen', l:'Go to file…', run:() => openQO() },
+  { id:'gotoLine', l:'Go to line…', file:1, run:() => openQO(':') },
+  { id:'palette', l:'Show all commands', run:() => openQO('>') },
+  { id:'save', l:'Save', file:1, run:() => save(active) },
+  { id:'saveAll', l:'Save all', run:() => saveAll() },
+  { id:'find', l:'Find in this file', file:1, run:() => openFind() },
+  { id:'searchFiles', l:'Search in files', run:() => openSearch(false) },
+  { id:'replaceFiles', l:'Replace in files', run:() => openSearch(true) },
+  { id:'comment', l:'Toggle line comment', file:1, run:() => { if (!tas[active].readOnly) toggleComment(tas[active]); } },
+  { id:'addComment', l:'Comment on the selection', file:1, run:() => openComposer() },
+  { id:'comments', l:'Toggle comments panel', run:() => toggleCm() },
+  { id:'sidebar', l:'Toggle sidebar', run:() => { app.classList.toggle('noside'); renderSide(); persist(); } },
+  { id:'explorer', l:'Show Explorer', run:() => { sideView = 'explorer'; app.classList.remove('noside'); renderSide(); persist(); } },
+  { id:'newFile', l:'New file', run:() => startNew('file') },
+  { id:'newFolder', l:'New folder', run:() => startNew('dir') },
+  { id:'importFiles', l:'Import files…', run:() => { if (guardWrite()) importFiles.click(); } },
+  { id:'importFolder', l:'Import folder…', run:() => { if (guardWrite()) importDir.click(); } },
+  { id:'closeTab', l:'Close tab', file:1, run:() => closeTab(active) },
+  { id:'prevTab', l:'Previous tab', run:() => cycleTab(-1) },
+  { id:'nextTab', l:'Next tab', run:() => cycleTab(1) },
+  { id:'collapse', l:'Collapse all folders', run:() => { expanded.clear(); renderTree(); persist(); } },
+  { id:'copyFile', l:'Copy file content', file:1, run:() => copyText(tas[active].value) },
+  { id:'shortcuts', l:'Show keyboard shortcuts', run:() => showShortcuts() }
+];
+function runCmd(id){
+  const c = CMDS.find(x => x.id === id); if (!c) return;
+  if (c.file && !(active && tas[active])) { toast('Open a file first.'); return; }
+  c.run();
+}
+const SHORTCUT_ROWS = [
+  ['Show all commands', 'palette'], ['Go to file', 'quickOpen'], ['Go to line', 'gotoLine'], ['Save', 'save'], ['Save all', 'saveAll'],
+  ['Find in this file', 'find'], ['Search in files', 'searchFiles'], ['Replace in files', 'replaceFiles'], ['Toggle line comment', 'comment'],
+  ['Toggle sidebar', 'sidebar'], ['New file', 'newFile'], ['Close tab', 'closeTab'], ['Previous tab · next tab', 'prevTab', 'nextTab'],
+  ['Comment on the selection', 'addComment'], ['Toggle comments panel', 'comments']
+];
+const shortcutRowsHtml = () => SHORTCUT_ROWS.map(([l, ...ids]) => `<tr><td>${esc(l)}</td><td>${ids.map(keyKbd).join(' · ')}</td></tr>`).join('')
+  + `<tr><td>Rename · delete (in the Explorer)</td><td><kbd>F2</kbd> · <kbd>${IS_MAC ? '⌘⌫' : 'Del'}</kbd></td></tr>`
+  + '<tr><td>Move files and folders</td><td>Drag them in the Explorer</td></tr>';
+function showShortcuts(){
+  modal('Keyboard shortcuts', IS_MAC ? 'Shortcuts for macOS. F1 also shows all commands.' : 'Shortcuts for Windows and Linux. F1 also shows all commands.',
+    [{ l:'Close', v:null, primary:1 }], `<div class="diff" style="padding:4px 10px"><table class="keys">${shortcutRowsHtml()}</table></div>`);
+}
+function applyKeyLabels(){
+  for (const el of document.querySelectorAll('[data-k]')) { const t = el.dataset.t || el.getAttribute('aria-label') || ''; el.title = `${t} (${keyText(el.dataset.k)})`; }
+  for (const el of document.querySelectorAll('[data-kl]')) el.innerHTML = keyKbd(el.dataset.kl);
+  $('#wKeys').innerHTML = shortcutRowsHtml();
+}
+let chordAt = 0;
+function setChord(on){
+  chordAt = on ? Date.now() : 0; renderStatus();
+  if (on) setTimeout(() => { if (chordAt && Date.now() - chordAt >= CHORD_TIMEOUT_MS - 50) { chordAt = 0; renderStatus(); } }, CHORD_TIMEOUT_MS);
+}
+const CHORDS = { n:'newFile', w:'closeTab', c:'addComment', m:'comments', arrowleft:'prevTab', arrowright:'nextTab', '[':'prevTab', ']':'nextTab' };
+function onKey(e){
+  if (!md.hidden || e.isComposing || e.key === 'Dead' || e.key === 'Process') return;
+  const k = keyName(e);
+  if (chordAt) {
+    if (['shift','control','meta','alt','altgraph'].includes(k)) return;
+    e.preventDefault(); setChord(false);
+    const id = CHORDS[k];
+    if (id) runCmd(id); else if (k !== 'escape') toast(`${keyText('newFile').split(' ')[0]} ${e.key} is not a shortcut. Press ${keyText('palette')} for all commands.`);
+    return;
+  }
+  if (e.key === 'F1') { e.preventDefault(); openQO('>'); return; }
+  if (isAltGr(e)) return;
+  if (isPrimary(e) && !e.altKey) {
+    if (k === 'k' && !e.shiftKey) { e.preventDefault(); setChord(true); return; }
+    // Toggle line comment: "/" (US, also Shift+7 on German keyboards), "#" (German, like VS Code) or the US slash position.
+    if (k === '/' || k === '#' || (e.code === 'Slash' && !e.shiftKey)) { if (active) { e.preventDefault(); runCmd('comment'); } return; }
+    const id = e.shiftKey ? { s:'saveAll', p:'palette', f:'searchFiles', h:'replaceFiles' }[k]
+      : { s:'save', p:'quickOpen', f:'find', b:'sidebar', g:IS_MAC ? null : 'gotoLine' }[k];
+    if (id) { e.preventDefault(); runCmd(id); return; }
+  }
+  if (IS_MAC && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && k === 'g') { e.preventDefault(); runCmd('gotoLine'); return; }
+  if (e.key === 'Escape') { if (!qo.hidden) closeQO(); else if (!menu.hidden) hideMenu(); else if (fOpen) closeFind(); }
+}
+
+/* ---------- events ---------- */
+tree.addEventListener('click', e => {
+  const a = e.target.closest('[data-a]');
+  if (a) { if (a.dataset.a === 'migrate') migrateLocal(); else if (a.dataset.a === 'sample') loadSample(); return; }
+  const r = e.target.closest('.row'); if (!r || r.classList.contains('inp')) return;
+  selPath = r.dataset.p;
+  if (r.dataset.k === 'd') { expanded.has(selPath) ? expanded.delete(selPath) : expanded.add(selPath); renderTree(); persist(); }
+  else { openTab(selPath); if (narrow()) { app.classList.add('noside'); renderSide(); } }
+});
+tree.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const r = e.target.closest('.row:not(.inp)'); selPath = r ? r.dataset.p : null; renderTree();
+  showMenu(e.clientX, e.clientY, treeMenu(selPath));
+});
+tree.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const rows = [...tree.querySelectorAll('.row:not(.inp)')]; let i = rows.findIndex(r => r.dataset.p === selPath);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); i = Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+    selPath = rows[i]?.dataset.p || null; renderTree(); tree.querySelector('.row.sel')?.scrollIntoView({ block:'nearest' });
+  } else if (e.key === 'ArrowRight' && dirs.has(selPath)) { expanded.add(selPath); renderTree(); }
+  else if (e.key === 'ArrowLeft' && selPath) { if (expanded.has(selPath)) expanded.delete(selPath); else if (dirname(selPath)) selPath = dirname(selPath); renderTree(); }
+  else if (e.key === 'Enter' && selPath) {
+    e.preventDefault();
+    if (dirs.has(selPath)) { expanded.has(selPath) ? expanded.delete(selPath) : expanded.add(selPath); renderTree(); } else openTab(selPath);
+  }
+  else if (e.key === 'F2' && selPath) { e.preventDefault(); startRename(selPath); }
+  else if ((e.key === 'Delete' || (e.key === 'Backspace' && e.metaKey)) && selPath) { e.preventDefault(); del(selPath); }
+});
+tree.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); tree.classList.add('drop'); } });
+tree.addEventListener('dragleave', () => tree.classList.remove('drop'));
+tree.addEventListener('drop', e => { tree.classList.remove('drop'); if (e.dataTransfer?.files?.length) { e.preventDefault(); doImport([...e.dataTransfer.files]); } });
+
+tabsEl.addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if (!t) return;
+  if (e.target.closest('.x')) closeTab(t.dataset.p); else if (t.dataset.p !== active) setActive(t.dataset.p);
+});
+tabsEl.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
+tabsEl.addEventListener('auxclick', e => { const t = e.target.closest('.tab'); if (t && e.button === 1) { e.preventDefault(); closeTab(t.dataset.p); } });
+let dragP = null;
+tabsEl.addEventListener('dragstart', e => { const t = e.target.closest('.tab'); if (!t) return; dragP = t.dataset.p; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragP); } catch (_) {} });
+tabsEl.addEventListener('dragover', e => {
+  if (!dragP) return; e.preventDefault();
+  for (const x of tabsEl.querySelectorAll('.over')) x.classList.remove('over');
+  e.target.closest('.tab')?.classList.add('over');
+});
+tabsEl.addEventListener('drop', e => {
+  if (!dragP) return; e.preventDefault();
+  const t = e.target.closest('.tab');
+  if (!t || t.dataset.p !== dragP) {
+    tabs.splice(tabs.indexOf(dragP), 1);
+    const to = t ? tabs.indexOf(t.dataset.p) : tabs.length;
+    tabs.splice(to < 0 ? tabs.length : to, 0, dragP); persist();
+  }
+  dragP = null; renderTabs();
+});
+tabsEl.addEventListener('dragend', () => { dragP = null; renderTabs(); });
+
+crumbs.addEventListener('click', async e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.a === 'save') { if (await save(active)) toast('Saved'); } else copyText(tas[active].value); });
+conflictEl.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) conflictAction(b.dataset.c); });
+statusEl.addEventListener('click', e => { if (e.target.closest('[data-a="goto"]')) openQO(':'); else if (e.target.closest('[data-a="cm"]')) toggleCm(true); else if (e.target.closest('[data-a="pal"]')) openQO('>'); });
+welcome.addEventListener('click', e => {
+  const a = e.target.closest('button')?.dataset.a;
+  if (a === 'new') startNew('file'); else if (a === 'dir') { if (guardWrite()) importDir.click(); } else if (a === 'qo') openQO();
+  else if (a === 'migrate') migrateLocal(); else if (a === 'sample') loadSample(); else if (a === 'chat') toggleCm(true);
+});
+$('#btnExplorer').onclick = () => showView('explorer');
+$('#btnSearch').onclick = () => showView('search');
+$('#btnChat').onclick = () => toggleCm();
+$('#btnReset').onclick = resetWorkspace;
+$('#tNewFile').onclick = () => startNew('file');
+$('#tNewDir').onclick = () => startNew('dir');
+$('#tCollapse').onclick = () => { expanded.clear(); renderTree(); persist(); };
+$('#tImport').onclick = e => { if (!guardWrite()) return; const r = e.currentTarget.getBoundingClientRect(); showMenu(r.left, r.bottom + 2, [{ l:'Import files…', f:() => importFiles.click() }, { l:'Import folder…', f:() => importDir.click() }]); };
+importFiles.onchange = () => { doImport([...importFiles.files]).finally(() => { importFiles.value = ''; }); };
+importDir.onchange = () => { doImport([...importDir.files]).finally(() => { importDir.value = ''; }); };
+menu.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const it = menu._items[b.dataset.i]; hideMenu(); it.f(); });
+menu.addEventListener('keydown', e => {
+  const bs = [...menu.querySelectorAll('button')], i = bs.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); }
+  else if (e.key === 'Escape') { e.stopPropagation(); hideMenu(); }
+});
+document.addEventListener('pointerdown', e => { if (!menu.hidden && !menu.contains(e.target)) hideMenu(); }, true);
+
+qoIn.addEventListener('input', () => { qoSel = 0; renderQO(); });
+qoIn.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (qoItems.length) { qoSel = (qoSel + (e.key === 'ArrowDown' ? 1 : -1) + qoItems.length) % qoItems.length; renderQO(); } }
+  else if (e.key === 'Enter') { e.preventDefault(); qoPick(qoSel); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeQO(); }
+});
+qoList.addEventListener('click', e => { const li = e.target.closest('li[data-i]'); if (li) qoPick(+li.dataset.i); });
+qo.addEventListener('pointerdown', e => { if (e.target === qo) closeQO(); });
+
+// in-file find
+fIn.addEventListener('input', () => recompute(true));
+fIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); stepMatch(e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFind(); }
+});
+rIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); replaceOne(); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFind(); }
+});
+for (const [id, k] of [['#fCase','cs'],['#fWord','ww'],['#fRe','re']]) $(id).onclick = e => { fOpt[k] = !fOpt[k]; e.currentTarget.setAttribute('aria-pressed', String(fOpt[k])); recompute(true); fIn.focus(); };
+$('#fNext').onclick = () => stepMatch(1);
+$('#fPrev').onclick = () => stepMatch(-1);
+$('#fClose').onclick = closeFind;
+$('#rOne').onclick = replaceOne;
+$('#rAll').onclick = replaceAllFile;
+
+// Search panel
+sIn.addEventListener('input', () => { clearTimeout(S.timer); S.timer = setTimeout(runSearch, 200); });
+for (const el of [sInc, sExc]) el.addEventListener('input', () => { clearTimeout(S.timer); S.timer = setTimeout(runSearch, 300); });
+sRep.addEventListener('input', renderSearch);
+for (const el of [sIn, sRep, sInc, sExc]) el.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.altKey) { e.preventDefault(); replaceAllSearch(); }
+  else if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+});
+for (const [id, k] of [['#sCase','cs'],['#sWord','ww'],['#sRe','re']]) $(id).onclick = e => { S[k] = !S[k]; e.currentTarget.setAttribute('aria-pressed', String(S[k])); runSearch(); sIn.focus(); };
+$('#sToggle').onclick = () => setRepVisible(!S.showRep);
+$('#sRepAll').onclick = replaceAllSearch;
+$('#sRefresh').onclick = runSearch;
+$('#sClear').onclick = () => { sIn.value = ''; sRep.value = ''; runSearch(); sIn.focus(); };
+$('#sCollapse').onclick = () => { for (const r of S.results) S.collapsed.add(r.p); renderSearch(); };
+sResults.addEventListener('click', async e => {
+  const rf = e.target.closest('[data-rf]'), rm = e.target.closest('[data-rm]');
+  if (rf) { e.stopPropagation(); const r = S.results[+rf.dataset.rf]; if (r) replaceInFiles([r]); return; }
+  if (rm) { e.stopPropagation(); const [fi, mi] = rm.dataset.rm.split(':').map(Number); const r = S.results[fi]; if (r && r.ms[mi]) replaceInFiles([{ p:r.p, ms:[r.ms[mi]] }]); return; }
+  const m = e.target.closest('.smatch'); if (m) { openMatch(+m.dataset.f, +m.dataset.m); return; }
+  const f = e.target.closest('.sfile');
+  if (f) { const r = S.results[+f.dataset.f]; if (!r) return; S.collapsed.has(r.p) ? S.collapsed.delete(r.p) : S.collapsed.add(r.p); renderSearch(); }
+});
+
+// comments
+$('#chClose').onclick = () => toggleCm(false);
+for (const b of document.querySelectorAll('.cfilter button')) b.onclick = () => { cm.filter = b.dataset.f; renderComments(); };
+clist.addEventListener('click', e => {
+  const cp = e.target.closest('[data-copy]'); if (cp) { copyText(cp.parentElement.querySelector('code').textContent); return; }
+  const b = e.target.closest('[data-act]'), card = e.target.closest('.card');
+  if (b && card) commentAction(b.dataset.act, card.dataset.id, card);
+});
+clist.addEventListener('keydown', e => {
+  if (e.target.tagName !== 'TEXTAREA') return;
+  e.stopPropagation();
+  const card = e.target.closest('.card'); if (!card) return;
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commentAction(e.target.dataset.kind === 'edit' ? 'saveEdit' : 'saveReply', card.dataset.id, card); }
+  else if (e.key === 'Escape') commentAction('cancel', card.dataset.id, card);
+});
+cbox.addEventListener('click', e => { const b = e.target.closest('[data-x]'); if (!b) return; if (b.dataset.x === 'save') saveComposer(); else { closeComposer(); tas[active]?.focus(); } });
+cbox.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveComposer(); }
+  else if (e.key === 'Escape') { closeComposer(); tas[active]?.focus(); }
+});
+cmk.addEventListener('click', e => { const b = e.target.closest('[data-cm]'); if (b) showComment(b.dataset.cm); });
+askPill.addEventListener('mousedown', e => e.preventDefault());
+askPill.onclick = openComposer;
+
+// move files and folders by dragging them in the Explorer
+let dragTree = null, dragHover = null, dragTimer = 0;
+const dropTarget = row => !row ? '' : row.dataset.k === 'd' ? row.dataset.p : dirname(row.dataset.p);
+const canDrop = (src, dir) => !!src && dir !== dirname(src) && dir !== src && !dir.startsWith(src + '/');
+function endTreeDrag(){
+  dragTree = null; dragHover = null; clearTimeout(dragTimer);
+  for (const x of tree.querySelectorAll('.dropt')) x.classList.remove('dropt');
+  tree.classList.remove('drop');
+}
+tree.addEventListener('dragstart', e => {
+  const r = e.target.closest('.row:not(.inp)'); if (!r) return;
+  if (!guardWrite()) { e.preventDefault(); return; }
+  dragTree = r.dataset.p; e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', dragTree); } catch (_) {}
+});
+tree.addEventListener('dragover', e => {
+  if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { dragTree = null; return; }   // files from the computer: import
+  if (!dragTree) return;
+  const r = e.target.closest('.row:not(.inp)'), dir = dropTarget(r);
+  for (const x of tree.querySelectorAll('.dropt')) x.classList.remove('dropt');
+  tree.classList.remove('drop');
+  if (r && r.dataset.k === 'd' && !expanded.has(r.dataset.p)) {
+    if (dragHover !== r.dataset.p) {
+      dragHover = r.dataset.p; clearTimeout(dragTimer);
+      dragTimer = setTimeout(() => { if (dragTree && dragHover) { expanded.add(dragHover); renderTree(); } }, DRAG_EXPAND_MS);
+    }
+  } else { dragHover = null; clearTimeout(dragTimer); }
+  if (!canDrop(dragTree, dir)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  if (dir) tree.querySelector(`.row[data-p="${CSS.escape(dir)}"]`)?.classList.add('dropt'); else tree.classList.add('drop');
+});
+tree.addEventListener('drop', e => {
+  if (!dragTree) return;
+  e.preventDefault();
+  const src = dragTree, dir = dropTarget(e.target.closest('.row:not(.inp)'));
+  endTreeDrag();
+  if (!canDrop(src, dir)) return;
+  const np = join(dir, base(src));
+  if (np in fs || dirs.has(np)) { toast(`"${base(src)}" already exists in ${dir || 'the top level'}.`, 'err'); return; }
+  if (!idOK(np)) { toast('The new path would be too long.', 'err'); return; }
+  moveStore(src, np).then(() => { if (dir) expandTo(dir); selPath = np; renderTree(); toast(`Moved "${base(src)}" to ${dir || 'the top level'}`); });
+});
+tree.addEventListener('dragend', endTreeDrag);
+
+const resizer = $('#resizer');
+resizer.addEventListener('pointerdown', e => {
+  e.preventDefault(); resizer.setPointerCapture(e.pointerId);
+  const x0 = e.clientX, w0 = sideW;
+  const mv = ev => { sideW = Math.max(180, Math.min(600, w0 + ev.clientX - x0)); app.style.setProperty('--sw', sideW + 'px'); };
+  const up = () => { resizer.removeEventListener('pointermove', mv); resizer.removeEventListener('pointerup', up); persist(); };
+  resizer.addEventListener('pointermove', mv); resizer.addEventListener('pointerup', up);
+});
+stage.addEventListener('pointerdown', () => { if (narrow() && (!app.classList.contains('noside') || app.classList.contains('chat'))) { app.classList.add('noside'); app.classList.remove('chat'); renderSide(); } });
+
+document.addEventListener('selectionchange', () => { if (document.activeElement === tas[active]) caret(); });
+document.addEventListener('keydown', onKey);
+const ro = new ResizeObserver(() => { measure(); sync(); placePill(); });
+ro.observe(code);
+
+applyKeyLabels();
+measure(); renderSide(); render(); renderComments();
+start();
+}
+</script>
+</body>
+</html>
