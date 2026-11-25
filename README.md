@@ -2,6 +2,10 @@
 
 A small code editor in one HTML file. It looks and works like a simple version of VS Code: an explorer on the left, an editor with tabs in the middle, and search across all files.
 
+![Mini Code with the comments panel: a highlighted comment in the code and a comment that Claude resolved, with its reply](docs/images/comments.png)
+
+*Screenshot with sample content, made automatically with a headless browser.*
+
 You can use Mini Code in two modes:
 
 - **Browser-only mode.** Open `index.html` in a browser, or publish it with GitHub Pages. The files stay in the storage of your browser.
@@ -17,6 +21,17 @@ You can use Mini Code in two modes:
 - Light and dark theme. Layout for phones.
 - Claude artifact mode only: live updates, a conflict bar with a compare view, and comments on selected text (`Ctrl+K` then `C`; macOS: `⌘K` then `C`).
 
+## Screenshots
+
+All screenshots show sample content. They were made automatically with a headless browser.
+
+| | |
+|---|---|
+| ![Comment box at a selection in main.cpp](docs/images/write-comment.png) | ![Search panel with a replace preview across files](docs/images/search-replace.png) |
+| Comment on selected text. Each comment gets a number, such as #4. | Search and replace in all files, with a preview of each change. |
+| ![Command palette with all commands and their shortcuts](docs/images/command-palette.png) | ![Comments panel with open and resolved comments](docs/images/comments.png) |
+| The command palette shows all commands and their shortcuts. | Claude replies to comments and resolves them. |
+
 ## Quick start with Claude
 
 To set up Mini Code as a claude.ai artifact, copy this prompt into a new chat with Claude. The chat must have a shell and artifact tools. For a second prompt to continue in a new chat, refer to [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
@@ -26,7 +41,7 @@ Please set up "Mini Code" for me as an artifact.
 
 1. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.4.1
+   git -C mini-code-editor checkout v0.4.2
    If you cannot run shell commands or reach GitHub, tell me and stop.
 2. Read index.html and docs/claude-integration.md completely before you publish anything.
 3. Publish index.html without changes as a new artifact with the title "Mini Code".
@@ -100,4 +115,5 @@ This content was generated with AI support (Claude, Anthropic) and subsequently 
 
 - Claude (Anthropic) wrote most of the code and the documentation.
 - A human specified the requirements, tested the editor and examined the result.
+- Claude made the screenshots automatically with a headless browser. They show sample content. They are not edited.
 - Examine the code before you use it for important work.
