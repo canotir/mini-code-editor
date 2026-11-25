@@ -2,6 +2,11 @@
 
 All dates are in ISO 8601 (UTC).
 
+## Unreleased
+
+### Added
+- Quick-start prompt for Claude in `README.md` and in `docs/quick-start-prompt.md`.
+
 ## 0.4.0 – 2026-11-25
 
 ### Added

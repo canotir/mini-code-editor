@@ -17,6 +17,27 @@ You can use Mini Code in two modes:
 - Light and dark theme. Layout for phones.
 - Claude artifact mode only: live updates, a conflict bar with a compare view, and comments on selected text (`Ctrl+K` then `C`; macOS: `⌘K` then `C`).
 
+## Quick start with Claude
+
+To set up Mini Code as a claude.ai artifact, copy this prompt into a new chat with Claude. The chat must have a shell and artifact tools. For a second prompt to continue in a new chat, refer to [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
+
+```text
+Please set up "Mini Code" for me as an artifact.
+
+1. Download the editor into your workspace with the shell:
+   git clone https://github.com/canotir/mini-code-editor
+   git -C mini-code-editor checkout 902aa374b67df4e5fc8b3729f7764373aab06928
+   If you cannot run shell commands or reach GitHub, tell me and stop.
+2. Read index.html and docs/claude-integration.md completely before you publish anything.
+3. Publish index.html without changes as a new artifact with the title "Mini Code".
+4. Declare these capabilities for the artifact:
+   {"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}}
+5. Give me the link. Do not write files into the project unless I ask.
+
+When I later ask you to read or change files or comments in Mini Code,
+follow docs/claude-integration.md.
+```
+
 ## Setup
 
 Mini Code has no dependencies and no build step.
