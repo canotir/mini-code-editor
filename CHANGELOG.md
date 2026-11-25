@@ -2,6 +2,11 @@
 
 All dates are in ISO 8601 (UTC).
 
+## Unreleased
+
+### Added
+- List of supported languages in `README.md`.
+
 ## 0.4.2 – 2026-11-25
 
 ### Added

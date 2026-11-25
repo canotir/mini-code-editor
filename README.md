@@ -14,12 +14,40 @@ You can use Mini Code in two modes:
 ## Features
 
 - Explorer: create, rename, delete and move files and folders. Move them with drag and drop. Import files or a full folder.
-- Editor: tabs, line numbers, syntax colors for approximately 15 languages, indent and outdent, auto-indent, line comments, undo for each tab.
+- Editor: tabs, line numbers, syntax colors for 15 languages ([list](#supported-languages)), indent and outdent, auto-indent, line comments, undo for each tab.
 - Command palette with all commands (`Ctrl+Shift+P`, `⌘⇧P` or `F1`). Go to file and go to line.
 - Find and replace in the current file (`Ctrl+F`).
 - Search and replace in all files (`Ctrl+Shift+F`): match case, whole word, regular expressions, files to include and to exclude.
 - Light and dark theme. Layout for phones.
 - Claude artifact mode only: live updates, a conflict bar with a compare view, and comments on selected text (`Ctrl+K` then `C`; macOS: `⌘K` then `C`).
+
+## Supported languages
+
+Mini Code shows syntax colors for these languages. It finds the language from the file extension or the file name.
+
+| Language | File extensions and file names |
+|----------|--------------------------------|
+| C and C++ (also Arduino) | `.c` `.h` `.cpp` `.cc` `.hpp` `.ino` |
+| Python | `.py` |
+| JavaScript | `.js` `.mjs` `.cjs` `.jsx` |
+| TypeScript | `.ts` `.tsx` |
+| Java | `.java` |
+| Go | `.go` |
+| Rust | `.rs` |
+| Shell | `.sh` `.bash` `.zsh`, `Makefile`, `Dockerfile`, `.gitignore`, `.bashrc` |
+| HTML and XML | `.html` `.htm` `.xml` `.svg` `.vue` |
+| CSS | `.css` `.scss` |
+| JSON | `.json` |
+| Markdown | `.md` `.markdown` |
+| INI | `.ini` `.cfg` `.conf` |
+| TOML | `.toml` |
+| YAML | `.yml` `.yaml` |
+
+Mini Code shows all other files as plain text. You can edit and search them.
+
+The syntax colors are simple. They show comments, strings, numbers, keywords and function calls. For HTML they also show tags and attributes. For Markdown they also show headings, lists and code. Mini Code does not analyze the code. For `Makefile` and `Dockerfile`, it uses the shell colors as an approximation.
+
+The user interface is in English only.
 
 ## Screenshots
 
