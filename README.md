@@ -1,6 +1,6 @@
 # Mini Code
 
-A small code editor in one HTML file. It looks and works like a simple version of VS Code: an explorer on the left, an editor with tabs in the middle, and search across all files.
+A small code editor in one HTML file. It looks and works like a simple version of Visual Studio Code (VS Code): an explorer on the left, an editor with tabs in the middle, and search across all files.
 
 ![Mini Code with the comments panel: a highlighted comment in the code and a comment that Claude resolved, with its reply](docs/images/comments.png)
 
@@ -153,6 +153,10 @@ Notes:
 ## Tests
 
 The tests were done manually and with automated browser scripts (Playwright and headless Chrome) during development. The repository does not contain test scripts at this time.
+
+## Disclaimer
+
+Mini Code is an independent hobby project. It is not affiliated with, sponsored by or endorsed by Microsoft. Visual Studio Code and VS Code are trademarks of Microsoft Corporation. Mini Code does not contain code, icons or other assets from Visual Studio Code.
 
 ## License
 

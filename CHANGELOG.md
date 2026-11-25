@@ -2,6 +2,11 @@
 
 All dates are in ISO 8601 (UTC).
 
+## Unreleased
+
+### Added
+- Disclaimer in `README.md`: Mini Code is not affiliated with Microsoft.
+
 ## 0.4.2 – 2026-11-25
 
 ### Added
