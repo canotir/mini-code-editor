@@ -2,10 +2,18 @@
 
 All dates are in ISO 8601 (UTC).
 
+## 0.4.2 – 2026-11-25
+
+### Added
+- Screenshots in `README.md` and `docs/images/`.
+
+### Fixed
+- The status bar labels "Spaces", "UTF-8" and "LF" had too little contrast.
+
 ## 0.4.1 – 2026-11-25
 
 ### Changed
-- The quick-start prompts select the release tag (`v0.4.1`) instead of a commit hash.
+- The quick-start prompts select a release tag instead of a commit hash.
 
 ## 0.4.0 – 2026-11-25
 

@@ -214,7 +214,7 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
  #app,#app.noside,#app.chat,#app.chat.noside{grid-template-columns:48px 0 0 minmax(0,1fr) 0}
  #side{position:absolute;left:48px;top:0;bottom:0;width:min(82vw,320px);z-index:20;box-shadow:8px 0 24px rgba(0,0,0,.3)}
  #chat{position:absolute;right:0;top:0;bottom:0;width:min(92vw,380px);z-index:21;box-shadow:-8px 0 24px rgba(0,0,0,.3)}
- #resizer,#status .opt{display:none}
+ #resizer,#status .narrow-hide{display:none}
 }
 @media (max-width:600px){
  #code{font-size:16px;line-height:22px}#curline{height:22px}
@@ -1003,7 +1003,7 @@ function renderStatus(){
   if (t) {
     const s = t.selectionStart, e = t.selectionEnd, c = t.selectionDirection === 'backward' ? s : e, before = t.value.slice(0, c);
     h += `<button data-a="goto" title="Go to line (${keyText('gotoLine')})">Ln ${countLines(before)}, Col ${c - before.lastIndexOf('\n')}${e > s ? ` (${e - s} selected)` : ''}</button>`
-      + `<span class="opt">Spaces: ${IND.length}</span><span class="opt">UTF-8</span><span class="opt">LF</span><span>${esc(langOf(active).name)}</span>`;
+      + `<span class="narrow-hide">Spaces: ${IND.length}</span><span class="narrow-hide">UTF-8</span><span class="narrow-hide">LF</span><span>${esc(langOf(active).name)}</span>`;
   }
   statusEl.innerHTML = h;
 }
