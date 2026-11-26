@@ -2,7 +2,7 @@
 
 All dates are in ISO 8601 (UTC).
 
-## Unreleased
+## 0.5.0 – 2026-11-26
 
 ### Added
 - Disclaimer in `README.md`: Mini Code is not affiliated with Microsoft.
@@ -20,7 +20,7 @@ All dates are in ISO 8601 (UTC).
 - `docs/claude-integration.md`: new procedures for the file history, changesets, proposals, path rules and comment states.
 - A file that is created again continues the revision numbers of its history.
 - The delete dialog tells how to restore a file.
-- On the branch `dev`, the prompts in `README.md` and `docs/quick-start-prompt.md` install the branch `dev`.
+- The prompts in `README.md` and `docs/quick-start-prompt.md` install version 0.5.0.
 
 ## 0.4.2 – 2026-11-25
 

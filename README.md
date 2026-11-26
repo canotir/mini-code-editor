@@ -72,8 +72,6 @@ All screenshots show sample content. They were made automatically with a headles
 
 ## Quick start with Claude
 
-> **Development branch.** On the branch `dev`, the prompts below install the development version (0.5.0-dev). It can contain errors. For the released version, use the prompts on the branch `main`.
-
 To set up Mini Code as a claude.ai artifact, copy this prompt into a new chat with Claude. The chat must have a shell and artifact tools. For a second prompt to continue in a new chat, refer to [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
 
 ```text
@@ -81,7 +79,7 @@ Please set up "Mini Code" for me as an artifact.
 
 1. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout dev
+   git -C mini-code-editor checkout v0.5.0
    If you cannot run shell commands or reach GitHub, tell me and stop.
 2. Read index.html and docs/claude-integration.md completely before you publish anything.
 3. Publish index.html without changes as a new artifact with the title "Mini Code".
@@ -98,13 +96,13 @@ follow docs/claude-integration.md.
 To update an existing Mini Code artifact, copy this prompt into a new chat. Replace `<link>` with the link to your artifact. Your files and comments stay in the project database. The welcome screen shows the installed version.
 
 ```text
-Please update my Mini Code artifact to the development version (branch dev): <link>
+Please update my Mini Code artifact to version v0.5.0: <link>
 
 1. Read my artifact and find its version in the tag
    <meta name="mini-code-version">. If the tag is missing, the version is older than 0.4.2.
 2. Download the new version into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout dev
+   git -C mini-code-editor checkout v0.5.0
    If you cannot run shell commands or reach GitHub, tell me and stop.
 3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
    If the data model or the capabilities changed, tell me and wait for my approval.
