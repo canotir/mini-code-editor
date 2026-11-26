@@ -12,20 +12,23 @@ Use these prompts to set up Mini Code as a claude.ai artifact. Copy a prompt and
 
 ## Prompt 1: set up Mini Code
 
-Use this prompt one time for each project.
+Use this prompt one time for each project. Each run creates a separate Mini Code artifact with its own files and comments. Claude asks you for its name first.
 
 ```text
 Please set up "Mini Code" for me as an artifact.
 
-1. Download the editor into your workspace with the shell:
+1. Ask me for the name of the new artifact, for example "Mini Code – Weather station".
+   Each Mini Code artifact has its own files and comments, so I can have several.
+   Wait for my answer.
+2. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
    git -C mini-code-editor checkout v0.5.0
    If you cannot run shell commands or reach GitHub, tell me and stop.
-2. Read index.html and docs/claude-integration.md completely before you publish anything.
-3. Publish index.html without changes as a new artifact with the title "Mini Code".
-4. Declare these capabilities for the artifact:
+3. Read index.html and docs/claude-integration.md completely before you publish anything.
+4. Publish index.html without changes as a new artifact. Use the name from step 1 as the title.
+5. Declare these capabilities for the artifact:
    {"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}}
-5. Give me the link. Do not write files into the project unless I ask.
+6. Give me the name and the link. Do not write files into the project unless I ask.
 
 When I later ask you to read or change files or comments in Mini Code,
 follow docs/claude-integration.md.
@@ -57,7 +60,7 @@ Please update my Mini Code artifact to version v0.5.0: <link>
 3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
    If the data model or the capabilities changed, tell me and wait for my approval.
 4. Read index.html completely. Then publish it without changes to my existing artifact
-   (same link). Do not create a new artifact.
+   (same link). Keep its title. Do not create a new artifact.
 5. Keep the declared capabilities. Do not change or delete data in the project database.
 6. Tell me the old and the new version.
 ```

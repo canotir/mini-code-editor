@@ -21,6 +21,7 @@ All dates are in ISO 8601 (UTC).
 - A file that is created again continues the revision numbers of its history.
 - The delete dialog tells how to restore a file.
 - The prompts in `README.md` and `docs/quick-start-prompt.md` install version 0.5.0.
+- The setup prompt tells Claude to ask for the name of the new artifact, so that you can have several Mini Code artifacts. The update prompt keeps the title.
 
 ## 0.4.2 – 2026-11-25
 
