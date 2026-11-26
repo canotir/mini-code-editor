@@ -994,7 +994,7 @@ async function reviewChangeset(id){
   const btns = st === 'proposed' ? [{ l:'Apply', v:'apply', primary:1 }, { l:'Reject', v:'reject' }, { l:'Close', v:null }]
     : (st === 'applied' || st === 'accepted') && store.canWrite ? [{ l:'Undo this changeset', v:'undo', danger:1 }, { l:'Close', v:null, primary:1 }]
     : [{ l:'Close', v:null, primary:1 }];
-  const title = String(c.summary || '').split('\n')[0].slice(0, 80);
+  const title = String(c.summary || '').split('\n')[0].replace(/[*`_]/g, '').slice(0, 80);
   const r = await modal(`Changeset ${+c.n || ''}: ${title}`, `${CS_LABEL[st]} · ${c.by === 'claude' ? 'Claude' : 'You'} · ${fmtTime(c.at)}. − old text, + new text.`, btns, body);
   if (r === 'apply') return applyChangeset(c);
   if (r === 'reject') { if (guardWrite()) await setCsState(c, { state:'rejected', decidedAt:nowIso(), decidedBy:'you' }); return; }

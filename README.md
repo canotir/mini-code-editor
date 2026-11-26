@@ -2,7 +2,7 @@
 
 A small code editor in one HTML file. It looks and works like a simple version of Visual Studio Code (VS Code): an explorer on the left, an editor with tabs in the middle, and search across all files.
 
-![Mini Code with the comments panel: a highlighted comment in the code and a comment that Claude resolved, with its reply](docs/images/comments.png)
+![Mini Code with the comments panel: comments with kinds and priorities, a question from Claude that waits for an answer, and a comment that Claude resolved](docs/images/comments.png)
 
 *Screenshot with sample content, made automatically with a headless browser.*
 
@@ -65,6 +65,10 @@ All screenshots show sample content. They were made automatically with a headles
 | Comment on selected text. Each comment gets a number, such as #4. | Search and replace in all files, with a preview of each change. |
 | ![Command palette with all commands and their shortcuts](docs/images/command-palette.png) | ![Comments panel with open and resolved comments](docs/images/comments.png) |
 | The command palette shows all commands and their shortcuts. | Claude replies to comments and resolves them. |
+| ![Activity panel with two changesets from Claude: changed files, comments, test result, open points and items not tested](docs/images/activity.png) | ![Review of a changeset: the diff of each changed file and the Undo button](docs/images/review.png) |
+| Activity shows one changeset for each Claude turn (version 0.5.0). | Review the diff of a changeset and undo it. |
+| ![Explorer with a pinned file, change markers, a lock icon and the menu with the path rules](docs/images/explorer-rules.png) | |
+| Dots mark changed files. The Explorer menu sets the path rules. | |
 
 ## Quick start with Claude
 

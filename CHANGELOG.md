@@ -12,6 +12,7 @@ All dates are in ISO 8601 (UTC).
 - Path rules in `meta/paths`: read-only for Claude, focus files and pinned files. Explorer menu items and commands for them. Command "Open project rules (CLAUDE.md)".
 - Comment fields `kind`, `priority` and `waitingFor`, with badges, a kind filter and sorting by position, priority or time.
 - Status block on the welcome screen.
+- New screenshots in `README.md`: Activity, review of a changeset, and the Explorer with path rules. The other screenshots show the new version.
 - Command "Restore a deleted file": the page keeps the last text of deleted and moved files in the file history.
 
 ### Changed
