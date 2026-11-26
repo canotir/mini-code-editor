@@ -2,7 +2,7 @@
 
 All dates are in ISO 8601 (UTC).
 
-## Unreleased
+## 0.6.0 – 2026-11-26
 
 ### Added
 - Claude skill `mini-code` in `skills/mini-code/SKILL.md` with the commands `/mini-code new`, `update`, `open`, `list` and `update-skill`. The skill finds the newest release, detects all Mini Code artifacts of the user and lets the user select the artifacts to update. It checks its own version and offers an update of itself.
@@ -10,7 +10,7 @@ All dates are in ISO 8601 (UTC).
 
 ### Changed
 - The quick start in `README.md` installs the skill with one prompt and has a command reference. The prompts for chats without skills are only in `docs/quick-start-prompt.md`.
-- On the branch `dev`, the prompts in `docs/quick-start-prompt.md` install the branch `dev`.
+- The prompts in `docs/quick-start-prompt.md` install version 0.6.0. The manual update prompt sets the page title to the name of the artifact.
 - `CLAUDE.md`: the skill version is a version location. The README has no version number.
 
 ## 0.5.0 – 2026-11-26
