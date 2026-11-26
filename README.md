@@ -72,48 +72,38 @@ All screenshots show sample content. They were made automatically with a headles
 
 ## Quick start with Claude
 
-To set up Mini Code as a claude.ai artifact, copy this prompt into a new chat with Claude. Claude asks you for the name of the new artifact. Run the prompt again for each project: each Mini Code artifact has its own files and comments. The chat must have a shell and artifact tools. For a second prompt to continue in a new chat, refer to [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
+Install the Claude skill `mini-code` one time. Copy this prompt into a chat with Claude. The chat must have a shell and artifact tools.
 
 ```text
-Please set up "Mini Code" for me as an artifact.
+Please install the Mini Code skill for me.
 
-1. Ask me for the name of the new artifact, for example "Mini Code – Weather station".
-   Each Mini Code artifact has its own files and comments, so I can have several.
-   Wait for my answer.
-2. Download the editor into your workspace with the shell:
-   git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.5.0
+1. Find the newest release of Mini Code with the shell:
+   git ls-remote --tags --refs https://github.com/canotir/mini-code-editor
+   Use the highest tag of the form vMAJOR.MINOR.PATCH. Tell me which tag you use.
+2. Download this release:
+   git clone --depth 1 --branch <tag> https://github.com/canotir/mini-code-editor
    If you cannot run shell commands or reach GitHub, tell me and stop.
-3. Read index.html and docs/claude-integration.md completely before you publish anything.
-4. Publish index.html without changes as a new artifact. Use the name from step 1 as the title.
-5. Declare these capabilities for the artifact:
-   {"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}}
-6. Give me the name and the link. Do not write files into the project unless I ask.
-
-When I later ask you to read or change files or comments in Mini Code,
-follow docs/claude-integration.md.
+3. Read skills/mini-code/SKILL.md completely. Do not change it.
+4. Propose it to me as a new skill with the name "mini-code", so that I can save it.
+5. Tell me the commands of the skill.
 ```
 
-### Update Mini Code
+Then type `/mini-code new` to create your first Mini Code artifact.
 
-To update an existing Mini Code artifact, copy this prompt into a new chat. Replace `<link>` with the link to your artifact. Your files and comments stay in the project database. The welcome screen shows the installed version.
+### Command reference
 
-```text
-Please update my Mini Code artifact to version v0.5.0: <link>
+| Command | Action |
+|---|---|
+| `/mini-code new` | Create a new Mini Code artifact. Claude asks for its name, installs the newest release and gives you the link. Each artifact has its own files and comments. |
+| `/mini-code update` | Find your Mini Code artifacts and show the ones with an older version. You select the artifacts to update, or all. Each artifact keeps its link, name, files and comments. |
+| `/mini-code open` | Select one Mini Code artifact and continue to work with it in this chat. Claude reads the project rules and shows the open comments and the newest changeset. |
+| `/mini-code list` | Show all your Mini Code artifacts with name, version and "update available". Changes nothing. |
+| `/mini-code update-skill` | Update the skill to the version of the newest release. |
+| `/mini-code` | Ask which of the commands above you want. |
 
-1. Read my artifact and find its version in the tag
-   <meta name="mini-code-version">. If the tag is missing, the version is older than 0.4.2.
-2. Download the new version into your workspace with the shell:
-   git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.5.0
-   If you cannot run shell commands or reach GitHub, tell me and stop.
-3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
-   If the data model or the capabilities changed, tell me and wait for my approval.
-4. Read index.html completely. Then publish it without changes to my existing artifact
-   (same link). Keep its title. Do not create a new artifact.
-5. Keep the declared capabilities. Do not change or delete data in the project database.
-6. Tell me the old and the new version.
-```
+Each command first finds the newest release and asks you to confirm it. If that release has a newer skill, Claude offers to update the skill first. A skill update always shows a card that you save with one click. The skill never changes without your approval.
+
+For details and limits, refer to [docs/skill.md](docs/skill.md). For chats without skills, use the prompts in [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
 
 ## Setup
 

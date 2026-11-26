@@ -2,7 +2,9 @@
 
 > This content was generated with AI support (Claude, Anthropic) and subsequently checked and, where necessary, revised by a human. Examine it before use.
 
-Use these prompts to set up Mini Code as a claude.ai artifact. Copy a prompt and paste it into a new chat with Claude.
+Use these prompts to set up Mini Code as a claude.ai artifact in a chat without skills. If the chat can use skills, install the skill `mini-code` instead. Refer to the section "Quick start with Claude" in the README and to [skill.md](skill.md).
+
+Copy a prompt and paste it into a new chat with Claude.
 
 ## Requirements
 
@@ -22,7 +24,7 @@ Please set up "Mini Code" for me as an artifact.
    Wait for my answer.
 2. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.5.0
+   git -C mini-code-editor checkout dev
    If you cannot run shell commands or reach GitHub, tell me and stop.
 3. Read index.html and docs/claude-integration.md completely before you publish anything.
 4. Publish index.html without changes as a new artifact. Use the name from step 1 as the title.
@@ -49,17 +51,18 @@ docs/claude-integration.md. Then look at my open comments.
 Use this prompt to update an existing Mini Code artifact to a newer version. Replace `<link>` with the link to your artifact. Your files and comments stay in the project database.
 
 ```text
-Please update my Mini Code artifact to version v0.5.0: <link>
+Please update my Mini Code artifact to the development version (branch dev): <link>
 
 1. Read my artifact and find its version in the tag
    <meta name="mini-code-version">. If the tag is missing, the version is older than 0.4.2.
 2. Download the new version into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.5.0
+   git -C mini-code-editor checkout dev
    If you cannot run shell commands or reach GitHub, tell me and stop.
 3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
    If the data model or the capabilities changed, tell me and wait for my approval.
-4. Read index.html completely. Then publish it without changes to my existing artifact
+4. Read index.html completely. In a copy, set the text of the <title> element to the
+   name of my artifact. Change nothing else. Publish the copy to my existing artifact
    (same link). Keep its title. Do not create a new artifact.
 5. Keep the declared capabilities. Do not change or delete data in the project database.
 6. Tell me the old and the new version.
@@ -67,7 +70,7 @@ Please update my Mini Code artifact to version v0.5.0: <link>
 
 ## Why the prompt uses a release tag
 
-The `checkout` line selects one released version. Without it, `git clone` gets the newest version, which can contain changes that nobody examined.
+The `checkout` line selects one version. On the branch `dev`, it selects the development version, which can contain errors. On the branch `main`, it selects one released version. Without it, `git clone` gets the newest version, which can contain changes that nobody examined.
 
 Only the owner of the repository can create or move a tag. When you release a new version, do these steps:
 

@@ -8,6 +8,7 @@ Mini Code is a code editor in one HTML file. It runs in a browser, or as a claud
 ## Structure
 - `index.html`: the full application (HTML, CSS and JavaScript).
 - `docs/claude-integration.md`: data model and procedures for artifact mode.
+- `skills/mini-code/SKILL.md`: the Claude skill that creates, updates, opens and lists Mini Code artifacts. `docs/skill.md` describes it.
 
 ## Hardware
 None.
@@ -35,12 +36,13 @@ The version number is in these locations. Change all of them for each release.
 | File | Location | Example |
 |------|----------|---------|
 | `index.html` | `<meta name="mini-code-version" content="…">` in `<head>` (line 7) | `content="0.4.2"` |
-| `README.md` | Quick-start prompt: `git -C mini-code-editor checkout v…` | `checkout v0.4.2` |
-| `README.md` | Update prompt: first line `…to version v…` and `checkout v…` | `version v0.4.2` |
-| `docs/quick-start-prompt.md` | Prompt 1 and prompt 3: the same lines as in `README.md` | `checkout v0.4.2` |
+| `docs/quick-start-prompt.md` | Prompt 1: `git -C mini-code-editor checkout v…`. Prompt 3: first line `…to version v…` and `checkout v…` | `checkout v0.4.2` |
+| `skills/mini-code/SKILL.md` | Line `Skill version: …`. Change it for each release, also if the skill did not change. | `Skill version: 0.6.0` |
 | `CHANGELOG.md` | New heading at the top | `## 0.4.2 – 2026-11-25` |
 
-On the branch `dev`, the meta tag has the suffix `-dev` (for example `0.5.0-dev`). The prompts then select the branch: `checkout dev`, and the update prompt starts with "…to the development version (branch dev):". For a release from `dev`, set the meta tag to the release version and set the prompts to the tag (`checkout v0.5.0`, "…to version v0.5.0:") before you merge into `main`.
+The README has no version number: its prompt installs the skill, and the skill finds the newest release tag.
+
+On the branch `dev`, the meta tag has the suffix `-dev` (for example `0.6.0-dev`). The prompts in `docs/quick-start-prompt.md` then select the branch: `checkout dev`, and the update prompt starts with "…to the development version (branch dev):". For a release from `dev`, set the meta tag and the skill version to the release version and set the prompts to the tag (`checkout v0.6.0`, "…to version v0.6.0:") before you merge into `main`. The skill uses only release tags, so it never installs the branch `dev`.
 
 Do not change the text "older than 0.4.2" in the update prompt. Version 0.4.2 is the first version with the meta tag.
 
@@ -49,8 +51,8 @@ The welcome screen reads the version from the meta tag. No other code holds the 
 Procedure:
 
 1. Change the version in all locations in the table.
-2. Make sure that the prompts in `README.md` and in `docs/quick-start-prompt.md` are identical.
-3. To find old version numbers, run `grep -rn "v0\.4\.1\|0\.4\.1" README.md docs index.html` (use the old version).
+2. Make sure that the commands in `skills/mini-code/SKILL.md`, the command reference in `README.md` and `docs/skill.md` agree.
+3. To find old version numbers, run `grep -rn "v0\.4\.1\|0\.4\.1" README.md docs skills index.html` (use the old version).
 4. Commit. Get approval, then push.
 5. The owner creates the release and the tag on GitHub, with the target `main`. The tag must point to the commit that contains the new version numbers. The git proxy of Claude sessions blocks tag pushes.
 
