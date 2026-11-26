@@ -19,7 +19,7 @@ Please set up "Mini Code" for me as an artifact.
 
 1. Download the editor into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.4.2
+   git -C mini-code-editor checkout dev
    If you cannot run shell commands or reach GitHub, tell me and stop.
 2. Read index.html and docs/claude-integration.md completely before you publish anything.
 3. Publish index.html without changes as a new artifact with the title "Mini Code".
@@ -46,13 +46,13 @@ docs/claude-integration.md. Then look at my open comments.
 Use this prompt to update an existing Mini Code artifact to a newer version. Replace `<link>` with the link to your artifact. Your files and comments stay in the project database.
 
 ```text
-Please update my Mini Code artifact to version v0.4.2: <link>
+Please update my Mini Code artifact to the development version (branch dev): <link>
 
 1. Read my artifact and find its version in the tag
    <meta name="mini-code-version">. If the tag is missing, the version is older than 0.4.2.
 2. Download the new version into your workspace with the shell:
    git clone https://github.com/canotir/mini-code-editor
-   git -C mini-code-editor checkout v0.4.2
+   git -C mini-code-editor checkout dev
    If you cannot run shell commands or reach GitHub, tell me and stop.
 3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
    If the data model or the capabilities changed, tell me and wait for my approval.
@@ -64,7 +64,7 @@ Please update my Mini Code artifact to version v0.4.2: <link>
 
 ## Why the prompt uses a release tag
 
-The `checkout` line selects one released version. Without it, `git clone` gets the newest version, which can contain changes that nobody examined.
+The `checkout` line selects one version. On the branch `dev`, it selects the development version, which can contain errors. On the branch `main`, it selects one released version. Without it, `git clone` gets the newest version, which can contain changes that nobody examined.
 
 Only the owner of the repository can create or move a tag. When you release a new version, do these steps:
 

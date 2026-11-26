@@ -40,6 +40,8 @@ The version number is in these locations. Change all of them for each release.
 | `docs/quick-start-prompt.md` | Prompt 1 and prompt 3: the same lines as in `README.md` | `checkout v0.4.2` |
 | `CHANGELOG.md` | New heading at the top | `## 0.4.2 – 2026-11-25` |
 
+On the branch `dev`, the meta tag has the suffix `-dev` (for example `0.5.0-dev`). The prompts then select the branch: `checkout dev`, and the update prompt starts with "…to the development version (branch dev):". For a release from `dev`, set the meta tag to the release version and set the prompts to the tag (`checkout v0.5.0`, "…to version v0.5.0:") before you merge into `main`.
+
 Do not change the text "older than 0.4.2" in the update prompt. Version 0.4.2 is the first version with the meta tag.
 
 The welcome screen reads the version from the meta tag. No other code holds the version.

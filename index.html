@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mini Code Editor</title>
-<meta name="mini-code-version" content="0.4.2">
+<meta name="mini-code-version" content="0.5.0-dev">
 <!--
   Mini Code Editor: a single-file code editor that runs in the browser. The version is in the meta tag "mini-code-version".
   Files are stored in this artifact's project database, so Claude can read and write them.
@@ -224,6 +224,30 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
  .wbox h1{font-size:32px}
  .keys td:last-child{white-space:normal}.keys td{vertical-align:top}
 }
+/* co-development */
+.dim{color:var(--dim)}
+.row .rb{display:grid;place-items:center;color:var(--dim);flex:none}.row .rb.inh{opacity:.55}
+.row.new .nm::after,.tab.new .nm::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:middle}
+.pinhead{font-size:12px;font-weight:600;color:var(--dim);padding:6px 16px 2px;text-transform:uppercase;letter-spacing:.04em}
+.pinsep{border-top:1px solid var(--line);margin:4px 0}
+#alist{flex:1;overflow:auto;padding:0 10px 16px}
+.chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;margin:4px 4px 0 0;border:1px solid var(--line);border-radius:12px;font-size:13px;color:var(--ink);background:var(--side);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip:hover{background:var(--hover)}
+.op{font:600 12px var(--mono)}.op-create{color:var(--t-str)}.op-delete{color:var(--err)}.op-edit{color:var(--mod)}
+.tag.st-proposed,.tag.st-drafting{background:var(--sel)}.tag.st-rejected,.tag.st-undone{background:var(--hover)}.tag.st-applied,.tag.st-accepted{background:var(--add)}
+.tag.t-passed{background:var(--add)}.tag.t-failed{background:var(--del)}.tag.t-not-run{background:var(--hover)}
+.tag.k-bug,.tag.p-high{background:var(--del)}.tag.k-question,.tag.k-idea,.tag.k-todo{background:var(--sel)}.tag.p-low{background:var(--hover)}
+.tag.wait-you{background:var(--accent);color:#fff}.tag.wait-claude{background:var(--hover)}
+.alab{font-size:13px;color:var(--dim);margin-top:6px}.alab code{font:12px var(--mono)}
+.alist{margin:2px 0 0 18px;padding:0}
+.acard details summary{cursor:pointer;font-size:13px;color:var(--dim);margin-top:4px}
+.log{max-height:240px;overflow:auto;font:12px/1.4 var(--mono);background:var(--bar);padding:6px;border-radius:6px;white-space:pre-wrap;margin:4px 0 0}
+.rv{flex:1;min-height:0;overflow:auto;display:grid;gap:6px;align-content:start;margin-bottom:8px}
+.rvf summary{cursor:pointer;padding:4px 0}.rvnote{color:var(--err);margin:4px 0}.rv .diff{max-height:50vh}
+.hrow{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--line)}.hrow .btn{height:28px;padding:0 10px;font-size:13px}
+.ksel{display:flex;gap:6px;flex-wrap:wrap}
+.ksel select,.cfilter select{height:28px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:13px;padding:0 4px}
+.wstat{margin:0;padding-left:20px}.wstat button{background:none;border:0;color:var(--accent);padding:0;font:inherit;cursor:pointer;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -231,6 +255,7 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
   <nav id="act" aria-label="Activity bar">
     <button id="btnExplorer" data-t="Explorer" data-k="sidebar" aria-label="Explorer" data-ic="files" data-s="24"></button>
     <button id="btnSearch" data-t="Search" data-k="searchFiles" aria-label="Search" data-ic="search" data-s="24"></button>
+    <button id="btnActivity" title="Activity: changesets from Claude" aria-label="Activity" data-ic="activity" data-s="24"></button>
     <button id="btnChat" data-t="Comments" data-k="comments" aria-label="Comments" data-ic="chat" data-s="24"></button>
     <span class="grow"></span>
     <button id="btnReset" title="Reset sample workspace" aria-label="Reset sample workspace" data-ic="reset" data-s="22" hidden></button>
@@ -270,6 +295,12 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
       </div>
       <div id="sSummary" class="ssum" aria-live="polite"></div>
       <div id="sResults" class="sres"></div>
+    </section>
+    <section id="pActivity" class="panel" aria-label="Activity" hidden>
+      <div class="sidehead"><span>Activity</span>
+        <div class="tools"><button id="aSeen" title="Mark all files as seen" aria-label="Mark all files as seen" data-ic="check"></button></div>
+      </div>
+      <div id="alist"></div>
     </section>
     <input type="file" id="importFiles" multiple hidden>
     <input type="file" id="importDir" webkitdirectory multiple hidden>
@@ -312,12 +343,15 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
           <p class="note" id="wVersion"></p>
           <p id="wIntro"></p>
           <div class="wbtns" id="wBtns"></div>
+          <div id="wStat"></div>
           <h2>Working with Claude</h2>
           <ul>
             <li>Claude reads and writes the files in this project. Its changes appear here live.</li>
             <li>To mark a spot for Claude, select text and press <span data-kl="addComment"></span> or the Comment button. Each comment gets a number such as #3.</li>
             <li>Then talk to Claude in the main conversation, for example “look at my comments” or “see #3”. Claude replies on the comment and resolves it when it is done.</li>
             <li>If Claude changes a file while you have unsaved edits, a bar lets you load its version, keep yours, or compare both.</li>
+            <li>A dot marks files that changed since you last opened them. Activity lists each changeset from Claude: review it, apply a proposal, or undo it.</li>
+            <li>In the Explorer menu, mark files or folders as read-only for Claude, as focus files, or pin them to the top.</li>
           </ul>
           <h2>Keyboard</h2>
           <p>Press <span data-kl="palette"></span> or <kbd>F1</kbd> to see all commands.</p>
@@ -331,7 +365,9 @@ kbd{font:13px var(--mono);background:var(--side);border:1px solid var(--line);bo
     <div class="sidehead"><span>Comments</span>
       <div class="tools"><button id="chClose" data-t="Close comments" data-k="comments" aria-label="Close comments" data-ic="x"></button></div>
     </div>
-    <div class="cfilter" role="group" aria-label="Show comments"><button data-f="open" aria-pressed="true">Open</button><button data-f="resolved" aria-pressed="false">Resolved</button><button data-f="all" aria-pressed="false">All</button></div>
+    <div class="cfilter" role="group" aria-label="Show comments"><button data-f="open" aria-pressed="true">Open</button><button data-f="resolved" aria-pressed="false">Resolved</button><button data-f="all" aria-pressed="false">All</button>
+      <select id="cKind" aria-label="Show kind"><option value="all">All kinds</option><option value="note">Notes</option><option value="question">Questions</option><option value="bug">Bugs</option><option value="todo">To-dos</option><option value="idea">Ideas</option><option value="you">Waiting for you</option></select>
+      <select id="cSort" aria-label="Sort comments"><option value="pos">By file and line</option><option value="prio">By priority</option><option value="new">Newest first</option></select></div>
     <div id="clist"></div>
   </aside>
 </div>
@@ -399,7 +435,13 @@ const SVG = {
   up:'<path d="M8 13V3M4 7l4-4 4 4"/>', down:'<path d="M8 3v10M4 9l4 4 4-4"/>',
   rep:'<path d="M2.5 5.5h8l-2-2M13.5 10.5h-8l2 2"/>',
   repAll:'<path d="M2.5 4.5h8l-2-2M13.5 9.5h-8l2 2"/><path d="M3 13.5h10"/>',
-  spark:'<path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l2 2M10 10l2 2M12 4l-2 2M6 10l-2 2"/>'
+  spark:'<path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l2 2M10 10l2 2M12 4l-2 2M6 10l-2 2"/>',
+  lock:'<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+  focus:'<circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="1.6"/>',
+  pin:'<path d="M6 2.5h4l-.5 4 2 2v1h-7v-1l2-2z"/><path d="M8 9.5V14"/>',
+  hist:'<path d="M2.8 8a5.2 5.2 0 1 0 1.6-3.8"/><path d="M2.6 2.5v2.8h2.8"/><path d="M8 5v3.2l2 1.3"/>',
+  activity:'<path d="M1.5 8.5h3l2-5 3 9 2-4h3"/>',
+  check:'<path d="M3 8.5l3 3 7-7"/>'
 };
 const ic = (name, size=16) => `<svg viewBox="0 0 16 16" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${SVG[name]}</svg>`;
 for (const b of document.querySelectorAll('[data-ic]')) b.innerHTML = ic(b.dataset.ic, +(b.dataset.s||16));
@@ -632,16 +674,20 @@ const store = { mode:'connecting', db:null, canWrite:true, busy:0, hold:0, heldS
 let fOpen = false, fMatches = [], fIdx = -1, fErr = '', qoItems = [], qoSel = 0;
 const fOpt = { cs:false, ww:false, re:false };
 const S = { cs:false, ww:false, re:false, showRep:false, results:[], total:0, limited:false, err:'', collapsed:new Set(), rx:null, timer:0 };
-const cm = { list:[], available:false, filter:'open', editing:null, replying:null, flash:null, draft:null, timer:0 };
+const cm = { list:[], available:false, filter:'open', kind:'all', sort:'pos', editing:null, replying:null, flash:null, draft:null, timer:0 };
 
 function ensureParents(p, set = dirs){ const a = p.split('/'); for (let i = 1; i < a.length; i++) set.add(a.slice(0, i).join('/')); }
 function recomputeDirs(){ dirs = new Set(); for (const d of explicitDirs) { dirs.add(d); ensureParents(d); } for (const p in fs) ensureParents(p); }
+const idCache = new Map();
 function docId(p){
+  const hit = idCache.get(p); if (hit) return hit;
+  if (idCache.size > 20000) idCache.clear();
   let s = 'f_';
   for (const b of new TextEncoder().encode(p)) s += (b < 128 && /[A-Za-z0-9_.-]/.test(String.fromCharCode(b))) ? String.fromCharCode(b) : '~' + b.toString(16).padStart(2, '0');
-  return s;
+  idCache.set(p, s); return s;
 }
-const idOK = p => docId(p).length <= MAX_ID_BYTES;
+const HIST_SUFFIX_BYTES = 12;   // room for '@' + revision in history ids
+const idOK = p => docId(p).length <= MAX_ID_BYTES - HIST_SUFFIX_BYTES;
 const isDirty = p => !!tas[p] && !!tabBase[p] && tas[p].value !== tabBase[p].content;
 const keepDeleted = new Set();   // tabs whose file was deleted remotely but the user chose "Keep mine"
 const isConflict = p => store.mode === 'db' && isDirty(p) && (!(p in fs) ? !keepDeleted.has(p) : (meta[p]?.rev || 0) !== (tabBase[p]?.rev || 0));
@@ -678,7 +724,8 @@ function reportErr(e){
   toast(msg, 'err');
 }
 // Write one file. expectedRev: null = must not exist yet, a number = the record must still have this rev.
-async function writeFile(p, content, expectedRev){
+// opts.changeset: id of the changeset that this write belongs to (apply and undo).
+async function writeFile(p, content, expectedRev, opts = {}){
   if (content.length > MAX_DOC_CHARS) throw { code:'too_large' };
   if (store.mode !== 'db') { fs[p] = content; meta[p] = { rev:0 }; persist(); return 0; }
   const ref = store.db.doc('files/' + docId(p));
@@ -687,14 +734,24 @@ async function writeFile(p, content, expectedRev){
     const curRev = cur.exists ? (+(cur.data() || {}).rev || 0) : 0;
     if (expectedRev === null && cur.exists) throw { code:'exists' };
     if (expectedRev !== null && curRev !== expectedRev) throw { code:'conflict', rev:curRev };
-    const rec = { path:p, content, rev:curRev + 1, by:'you', at:new Date().toISOString() };
+    const baseRev = cur.exists ? curRev : await lastHistRev(p);
+    const rec = { path:p, content, rev:baseRev + 1, by:'you', byUser:me.uid || null, changeset:opts.changeset || null, at:nowIso() };
+    if (cur.exists) { try { await saveHistory(p, cur.data() || {}); } catch (e) { warnHistory(); } }
     await ref.set(rec);
-    fs[p] = content; meta[p] = { rev:rec.rev, by:'you', at:rec.at };
+    fs[p] = content; meta[p] = { rev:rec.rev, by:'you', at:rec.at, byUser:rec.byUser, changeset:rec.changeset };
+    markSeen(p, true);
     return rec.rev;
   });
 }
-async function deleteFile(p){
-  if (store.mode === 'db') await withRetry(() => store.db.doc('files/' + docId(p)).delete());
+// expectedRev: when given, delete only if the record still has this revision.
+async function deleteFile(p, expectedRev){
+  if (store.mode === 'db') {
+    const ref = store.db.doc('files/' + docId(p));
+    const cur = await withRetry(() => ref.get());
+    if (expectedRev != null && (cur.exists ? (+(cur.data() || {}).rev || 0) : 0) !== expectedRev) throw { code:'conflict' };
+    if (cur.exists) { try { await saveHistory(p, cur.data() || {}); } catch (e) { warnHistory(); } }
+    await withRetry(() => ref.delete());
+  }
   delete fs[p]; delete meta[p];
   if (store.mode !== 'db') persist();
 }
@@ -734,7 +791,7 @@ function restoreUI(ui){
   sideW = Math.max(180, Math.min(600, +ui.sideW || 260));
   if (ui.side === false) app.classList.add('noside');
   if (ui.chat === true) app.classList.add('chat');
-  sideView = ui.sideView === 'search' ? 'search' : 'explorer';
+  sideView = ['search', 'activity'].includes(ui.sideView) ? ui.sideView : 'explorer';
   expanded = new Set(arr(ui.expanded));
   for (const p of arr(ui.tabs)) {
     if (!(p in fs) || tabs.includes(p)) continue;
@@ -748,6 +805,347 @@ function restoreUI(ui){
   active = tabs.includes(ui.active) ? ui.active : (tabs[0] || null);
 }
 
+/* ---------- co-development: file history, changesets, review, change markers, path rules ---------- */
+const HISTORY_DEPTH = 5;              // old revisions kept per file (owner decision 2026-11-26)
+const MAX_CHANGESETS = 50;            // newest changesets shown in the Activity panel
+const SEEN_WRITE_DELAY_MS = 1500;     // coalesce marker updates into one write
+const SEEN_KEY = 'mini-code-seen-v1'; // marker fallback in browser storage when the user id is not available
+const MAX_LOG_CHARS = 20000;
+const CS_STATES = ['drafting', 'proposed', 'applied', 'accepted', 'rejected', 'undone'];
+const CS_LABEL = { drafting:'Drafting', proposed:'Proposed', applied:'Applied', accepted:'Applied', rejected:'Rejected', undone:'Undone' };
+const OP_LABEL = { edit:'M', create:'A', delete:'D' };
+const OP_TITLE = { edit:'Changed', create:'Created', delete:'Deleted' };
+const KINDS = { note:'Note', question:'Question', bug:'Bug', todo:'To-do', idea:'Idea' };
+const PRIOS = { high:'High', normal:'Normal', low:'Low' };
+const RULES_TEMPLATE = '# CLAUDE.md\n\nRules for Claude in this project. Claude reads this file before it starts a task.\n\n## Project\n\n- Purpose:\n\n## Rules\n\n- \n';
+const me = { uid:null };
+const actv = { list:[] };
+const seen = { revs:{}, ready:false, timer:0, writing:false, again:false };
+let rules = { readonly:[], focus:[], pinned:[] }, newDirs = new Set();
+const histId = (p, rev) => docId(p) + '@' + rev;
+const own = (o, k) => typeof k === 'string' && Object.hasOwn(o, k);
+const nowIso = () => new Date().toISOString();
+let historyWarned = false;
+function warnHistory(){ if (!historyWarned) { historyWarned = true; toast('The old revision could not be kept in the file history. The save itself worked.', 'err'); } }
+
+// File history: keep the record that a write replaces, then delete revisions beyond HISTORY_DEPTH.
+async function saveHistory(p, cur){
+  const rev = +cur.rev || 0;
+  if (!rev || typeof cur.content !== 'string') return;
+  await withRetry(() => store.db.doc('history/' + histId(p, rev)).set({ path:p, rev, content:cur.content,
+    by:typeof cur.by === 'string' ? cur.by : '', at:typeof cur.at === 'string' ? cur.at : '', changeset:typeof cur.changeset === 'string' ? cur.changeset : null }));
+  pruneHistory(p);
+}
+async function pruneHistory(p){
+  try {
+    const snap = await store.db.collection('history').where('path', '==', p).get();
+    const old = snap.docs.map(d => ({ id:d.id, rev:+((d.data() || {}).rev) || 0 })).sort((a, b) => b.rev - a.rev).slice(HISTORY_DEPTH);
+    for (const o of old) await withRetry(() => store.db.doc('history/' + o.id).delete());
+  } catch (e) { /* best effort: the next write prunes again */ }
+}
+// Highest revision in the file history of a path: a file created again continues the numbers,
+// so that history ids and the revision checks of undo never match an older file with the same name.
+async function lastHistRev(p){
+  try { const snap = await store.db.collection('history').where('path', '==', p).get(); return snap.docs.reduce((m, d) => Math.max(m, +((d.data() || {}).rev) || 0), 0); }
+  catch (e) { return 0; }
+}
+async function loadHistory(p){
+  const snap = await store.db.collection('history').where('path', '==', p).get();
+  return snap.docs.map(d => d.data() || {}).filter(h => typeof h.content === 'string' && Number.isFinite(+h.rev)).sort((a, b) => +b.rev - +a.rev);
+}
+function syncTab(p, text, rev){ if (tas[p] && !isDirty(p)) { replaceBuffer(p, text); tabBase[p] = { rev, content:text }; } }
+async function showHistory(p){
+  if (!p) return;
+  if (store.mode !== 'db') { toast('The file history needs the project database.'); return; }
+  let revs;
+  try { revs = await busy(() => loadHistory(p)); } catch (e) { reportErr(e); return; }
+  if (!revs.length) { await modal(`History of "${base(p)}"`, 'No older revisions yet. Each save keeps the revision that it replaces.', [{ l:'Close', v:null, primary:1 }]); return; }
+  const rows = revs.map((h, i) => `<div class="hrow"><b>rev ${+h.rev}</b><span class="dim">${h.by === 'claude' ? 'Claude' : 'You'} · ${esc(fmtTime(h.at))}</span><span class="grow"></span>`
+    + `<button class="btn" data-v="cmp:${i}">Compare</button><button class="btn" data-v="res:${i}">Restore</button></div>`).join('');
+  const r = await modal(`History of "${base(p)}"`, `The last ${HISTORY_DEPTH} revisions before the current one. Restore puts the old text into the editor as unsaved changes.`, [{ l:'Close', v:null, primary:1 }], `<div class="rv">${rows}</div>`);
+  if (!r) return;
+  const [what, idx] = String(r).split(':'), h = revs[+idx]; if (!h) return;
+  if (what === 'cmp') {
+    const cur = tas[p] ? tas[p].value : (fs[p] ?? '');
+    const r2 = await modal(`Compare rev ${+h.rev} of "${base(p)}"`, '− only in the old revision   + only in the current text', [{ l:'Restore this revision', v:'res' }, { l:'Back', v:'back' }, { l:'Close', v:null, primary:1 }], `<pre class="diff">${diffHtml(diffLines(h.content, cur))}</pre>`);
+    if (r2 === 'back') return showHistory(p);
+    if (r2 !== 'res') return;
+  }
+  if (!guardWrite()) return;
+  if (!(p in fs)) { toast('The file is no longer in the project.'); return; }
+  openTab(p); const t = tas[p]; if (!t) return;
+  insert(t, h.content, 0, t.value.length, 0);
+  toast(`Rev ${+h.rev} is in the editor as unsaved changes. Save to keep it.`);
+}
+
+// Change markers: the last revision this person saw of each file, stored privately per person.
+function isNew(p){
+  if (!seen.ready || !(p in meta)) return false;
+  const m = meta[p];
+  if ((m.rev || 0) <= (seen.revs[docId(p)] || 0)) return false;
+  return !(m.by === 'you' && me.uid && m.byUser === me.uid);
+}
+function cleanRevs(o){ const r = {}; if (o && typeof o === 'object') for (const k in o) if (Number.isFinite(+o[k])) r[k] = +o[k]; return r; }
+function mergeSeen(remote, existed){
+  if (!seen.ready) {
+    seen.ready = true; seen.revs = existed ? cleanRevs(remote) : {};
+    if (!existed) { for (const p in meta) seen.revs[docId(p)] = meta[p].rev || 0; scheduleSeenWrite(); }   // first visit: nothing is new
+  } else { const r = cleanRevs(remote); for (const k in r) seen.revs[k] = Math.max(seen.revs[k] || 0, r[k]); }
+  if (active) markSeen(active, true);
+  renderMarks();
+}
+function markSeen(p, quiet){
+  if (!seen.ready || !p || !(p in meta)) return;
+  const id = docId(p), r = meta[p].rev || 0;
+  if ((seen.revs[id] || 0) >= r) return;
+  seen.revs[id] = r; scheduleSeenWrite(); if (!quiet) renderMarks();
+}
+function markAllSeen(){
+  if (!seen.ready) { toast('Change markers need the project database.'); return; }
+  for (const p in meta) seen.revs[docId(p)] = Math.max(seen.revs[docId(p)] || 0, meta[p].rev || 0);
+  scheduleSeenWrite(); renderMarks();
+}
+function scheduleSeenWrite(){ clearTimeout(seen.timer); seen.timer = setTimeout(writeSeen, SEEN_WRITE_DELAY_MS); }
+async function writeSeen(){
+  const ids = new Set(Object.keys(meta).map(docId));
+  for (const k of Object.keys(seen.revs)) if (!ids.has(k)) delete seen.revs[k];   // keep the record small
+  const local = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen.revs)); } catch (e) {} };
+  if (!me.uid || seen.local) { local(); return; }
+  if (seen.writing) { seen.again = true; return; }
+  seen.writing = true;
+  try {
+    const ref = store.db.doc(`data/users/${me.uid}/seen`), cur = await withRetry(() => ref.get());
+    const r = cleanRevs(cur.exists ? (cur.data() || {}).revs : null);   // another tab of this person may have written newer values
+    for (const k in r) if (ids.has(k)) seen.revs[k] = Math.max(seen.revs[k] || 0, r[k]);
+    await withRetry(() => ref.set({ revs:{ ...seen.revs } }));
+  }
+  catch (e) { if (e && e.code === 'invalid_argument') { seen.local = true; local(); } }   // for example a view-only member: keep the markers in this browser
+  finally { seen.writing = false; if (seen.again) { seen.again = false; scheduleSeenWrite(); } }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && active && !isDirty(active)) markSeen(active); });
+function startSeen(){
+  if (me.uid) {
+    let first = true;
+    store.db.doc(`data/users/${me.uid}/seen`).onSnapshot(s => { const d = s.exists ? (s.data() || {}) : {}; mergeSeen(d.revs, s.exists); first = false; },
+      () => { if (first) { me.uid = null; mergeSeen(readJSON(SEEN_KEY), !!readJSON(SEEN_KEY)); } });
+  } else { const r = readJSON(SEEN_KEY); mergeSeen(r, !!r); }
+}
+function renderMarks(){ renderTabs(); renderTree(); if (!welcome.hidden) renderWelcome(); }
+
+// Changesets: one record per Claude turn. Claude writes them; the page changes their state.
+function csState(c){ return CS_STATES.includes(c.state) ? c.state : 'applied'; }
+function csFiles(c){ return Array.isArray(c.files) ? c.files.filter(f => f && typeof f.path === 'string' && validName(f.path, true) && own(OP_LABEL, f.op)) : []; }
+function csCard(c){
+  const st = csState(c), files = csFiles(c);
+  const nums = Array.isArray(c.comments) ? c.comments.map(Number).filter(Number.isFinite) : [];
+  const t = c.tests && typeof c.tests === 'object' ? c.tests : null, ts = t && ['passed', 'failed', 'not run'].includes(t.state) ? t.state : null;
+  const list = (title, xs) => { xs = arr(xs); return xs.length ? `<div class="alab">${title}</div><ul class="alist">${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''; };
+  return `<div class="card acard" data-cs="${esc(c.id)}"><div class="chead"><b>Changeset ${+c.n || '?'}</b><span class="tag st-${st}">${CS_LABEL[st]}</span><span class="grow"></span><span>${c.by === 'claude' ? 'Claude' : 'You'} · ${esc(fmtTime(c.at))}</span></div>`
+    + `<div class="ctext">${mdLite(c.summary || "")}</div>`
+    + (files.length ? `<div>${files.map(f => `<button class="chip" data-open="${esc(f.path)}" title="${OP_TITLE[f.op]}: ${esc(f.path)}"><b class="op op-${f.op}">${OP_LABEL[f.op]}</b>${esc(base(f.path))}</button>`).join('')}</div>` : '')
+    + (nums.length ? `<div>${nums.map(n => `<button class="chip" data-cmn="${n}" title="Show comment #${n}">#${n}</button>`).join('')}</div>` : '')
+    + (ts ? `<div class="alab">Tests: <span class="tag t-${ts.replace(' ', '-')}">${ts}</span>${typeof t.command === 'string' && t.command ? ` <code>${esc(t.command)}</code>` : ''}</div>`
+      + (typeof t.log === 'string' && t.log ? `<details><summary>Test log</summary><pre class="log">${esc(t.log.slice(0, MAX_LOG_CHARS))}</pre></details>` : '') : '')
+    + list('Open points', c.open) + list('Not tested', c.untested) + list('Notes', c.notes)
+    + `<div class="cacts">${files.length ? '<button data-ra="review">Review</button>' : ''}<button data-ra="copy" title="Copy the reference for the conversation">Copy reference</button></div></div>`;
+}
+function renderActivity(){
+  const el = $('#alist');
+  if (store.mode !== 'db') { el.innerHTML = `<p class="empty">${store.mode === 'connecting' ? 'Connecting…' : 'Activity needs the project database, which is not available here.'}</p>`; return; }
+  el.innerHTML = actv.list.length ? actv.list.map(csCard).join('') : '<p class="empty">No changesets yet. Claude creates one for each turn in which it changes files.</p>';
+}
+async function setCsState(c, data){
+  try { await busy(() => withRetry(() => store.db.doc('changesets/' + c.id).update(data))); } catch (e) { reportErr(e); }
+}
+async function loadReview(c){
+  const proposed = csState(c) === 'proposed', out = [];
+  const hist = async (p, rev) => { const h = await store.db.doc('history/' + histId(p, rev)).get(); return h.exists ? ((h.data() || {}).content ?? null) : null; };
+  for (const f of csFiles(c)) {
+    let oldT = '', newT = '', note = '';
+    try {
+      if (f.op !== 'create') {
+        oldT = (f.path in fs && meta[f.path].rev === +f.baseRev) ? fs[f.path] : await hist(f.path, +f.baseRev);
+        if (oldT === null) note = 'The old text is no longer in the file history.';
+      }
+      if (f.op !== 'delete') {
+        if (proposed) {
+          const d = await store.db.doc(`changesets/${c.id}/files/${docId(f.path)}`).get();
+          newT = d.exists && typeof (d.data() || {}).content === 'string' ? d.data().content : null;
+          if (newT === null) note = 'The proposed text is missing.';
+        } else {
+          newT = (f.path in fs && meta[f.path].rev === +f.newRev) ? fs[f.path] : await hist(f.path, +f.newRev);
+          if (newT === null) note = 'The new text is no longer in the file history.';
+        }
+      }
+    } catch (e) { oldT = newT = null; note = 'This file could not be loaded.'; }
+    out.push({ f, oldT, newT, note });
+  }
+  return out;
+}
+async function reviewChangeset(id){
+  const c = actv.list.find(x => x.id === id); if (!c || store.mode !== 'db') return;
+  const items = await busy(() => loadReview(c)), st = csState(c);
+  const body = '<div class="rv">' + items.map(({ f, oldT, newT, note }) => {
+    const moved = st === 'proposed' && (f.op === 'create' ? f.path in fs : !(f.path in fs) || meta[f.path].rev !== +f.baseRev);
+    return `<details open class="rvf"><summary><b class="op op-${f.op}">${OP_LABEL[f.op]}</b> ${esc(f.path)} <span class="dim">${OP_TITLE[f.op]}</span></summary>`
+      + (note ? `<p class="rvnote">${esc(note)}</p>` : '') + (moved ? '<p class="rvnote">This file changed after the proposal.</p>' : '')
+      + (oldT !== null && newT !== null ? `<pre class="diff">${diffHtml(diffLines(oldT, newT))}</pre>` : '') + '</details>';
+  }).join('') + '</div>';
+  const btns = st === 'proposed' ? [{ l:'Apply', v:'apply', primary:1 }, { l:'Reject', v:'reject' }, { l:'Close', v:null }]
+    : (st === 'applied' || st === 'accepted') && store.canWrite ? [{ l:'Undo this changeset', v:'undo', danger:1 }, { l:'Close', v:null, primary:1 }]
+    : [{ l:'Close', v:null, primary:1 }];
+  const title = String(c.summary || '').split('\n')[0].slice(0, 80);
+  const r = await modal(`Changeset ${+c.n || ''}: ${title}`, `${CS_LABEL[st]} · ${c.by === 'claude' ? 'Claude' : 'You'} · ${fmtTime(c.at)}. − old text, + new text.`, btns, body);
+  if (r === 'apply') return applyChangeset(c);
+  if (r === 'reject') { if (guardWrite()) await setCsState(c, { state:'rejected', decidedAt:nowIso(), decidedBy:'you' }); return; }
+  if (r === 'undo') return undoChangeset(c, items);
+}
+async function applyChangeset(c0){
+  if (!guardWrite()) return;
+  let c, items;
+  try {
+    const d = await busy(() => withRetry(() => store.db.doc('changesets/' + c0.id).get()));
+    c = d.exists ? { id:c0.id, ...(d.data() || {}) } : null;
+    if (c && csState(c) === 'proposed') items = await busy(() => loadReview(c));
+  } catch (e) { reportErr(e); return; }
+  if (!items) { await modal('The changeset was not applied', 'The changeset is no longer a proposal. It was applied, rejected or deleted in the meantime.', [{ l:'Close', v:null, primary:1 }]); return; }
+  const bad = [];
+  for (const { f, newT } of items) {
+    if (f.op !== 'delete' && newT === null) bad.push(`${f.path}: the proposed text is missing`);
+    else if (f.op === 'create' ? f.path in fs : !(f.path in fs) || meta[f.path].rev !== +f.baseRev) bad.push(`${f.path}: changed after the proposal`);
+    else if (isDirty(f.path)) bad.push(`${f.path}: has unsaved edits`);
+  }
+  if (bad.length) { await modal('The changeset was not applied', 'Nothing was changed. ' + bad.join(' · '), [{ l:'Close', v:null, primary:1 }]); return; }
+  const files = Array.isArray(c.files) ? c.files.map(f => f && typeof f === 'object' ? { ...f } : f) : [], notes = [], removed = [];
+  let done = 0;
+  await hold(() => busy(async () => {
+    for (const { f, newT } of items) {
+      const rec = files.find(x => x && x.path === f.path && x.op === f.op);
+      try {
+        if (f.op === 'delete') { await deleteFile(f.path, +f.baseRev); removed.push(f.path); rec.newRev = null; }
+        else { const rev = await writeFile(f.path, newT, f.op === 'create' ? null : +f.baseRev, { changeset:c.id }); syncTab(f.path, newT, rev); rec.newRev = rev; }
+        done++;
+      } catch (e) { notes.push(`${f.path}: not applied (${(e && e.code) || 'error'})`); }
+    }
+    recomputeDirs();
+  }));
+  for (const p of removed) if (tabs.includes(p)) dropTab(p);
+  if (!done) { await setCsState(c, { notes }); render(); toast('Nothing was applied. See the notes in the changeset.', 'err'); return; }
+  await setCsState(c, { state:'accepted', files, notes, decidedAt:nowIso(), decidedBy:'you' });
+  render(); scheduleSearch(); paintComments();
+  toast(notes.length ? `Applied with ${notes.length} problem${notes.length === 1 ? '' : 's'}. See the changeset.` : `Changeset ${c.n} applied`);
+}
+async function undoChangeset(c, items){
+  if (!guardWrite()) return;
+  const created = items.filter(x => x.f.op === 'create').map(x => x.f.path);
+  const ok = await modal(`Undo changeset ${c.n}?`, 'Each file goes back to its text before this changeset. ' + (created.length ? `Files that the changeset created are deleted: ${created.join(', ')}. ` : '')
+    + 'Files that changed after the changeset are not touched. The undo itself becomes new revisions in the file history.', [{ l:'Undo', v:1, danger:1 }, { l:'Cancel', v:0 }]);
+  if (!ok) return;
+  const notes = [], removed = [];
+  await hold(() => busy(async () => {
+    for (const { f, oldT } of [...items].reverse()) {
+      const p = f.path;
+      try {
+        if (isDirty(p)) { notes.push(`${p}: not undone, it has unsaved edits`); continue; }
+        if (f.op === 'delete') {
+          if (p in fs) { notes.push(`${p}: not restored, a file with this name exists`); continue; }
+          if (oldT === null) { notes.push(`${p}: not restored, the old text is not in the file history`); continue; }
+          await writeFile(p, oldT, null); continue;
+        }
+        if (!(p in fs)) { notes.push(`${p}: not undone, it was deleted later`); continue; }
+        if (meta[p].rev !== +f.newRev || (meta[p].changeset && meta[p].changeset !== c.id)) { notes.push(`${p}: not undone, it changed after the changeset`); continue; }
+        if (f.op === 'create') { await deleteFile(p, +f.newRev); removed.push(p); continue; }
+        if (oldT === null) { notes.push(`${p}: not undone, the old text is not in the file history`); continue; }
+        const rev = await writeFile(p, oldT, meta[p].rev); syncTab(p, oldT, rev);
+      } catch (e) { notes.push(`${p}: not undone (${(e && e.code) || 'error'})`); }
+    }
+    recomputeDirs();
+  }));
+  for (const p of removed) if (tabs.includes(p)) dropTab(p);
+  await setCsState(c, { state:'undone', notes, undoneAt:nowIso(), undoneBy:'you' });
+  render(); scheduleSearch(); paintComments();
+  toast(notes.length ? `Undo finished with ${notes.length} note${notes.length === 1 ? '' : 's'}. See the changeset.` : `Changeset ${c.n} undone`);
+}
+function onCsClick(e){
+  const o = e.target.closest('[data-open]');
+  if (o) { const p = o.dataset.open; if (p in fs) openTab(p); else toast('That file is no longer in the project.'); return; }
+  const n = e.target.closest('[data-cmn]');
+  if (n) { const c = cm.list.find(x => +x.n === +n.dataset.cmn); if (c) showComment(c.id); else toast(`Comment #${n.dataset.cmn} was not found.`); return; }
+  const cp = e.target.closest('[data-copy]'); if (cp) { copyText(cp.parentElement.querySelector('code').textContent); return; }
+  const b = e.target.closest('[data-ra]'), card = e.target.closest('[data-cs]'); if (!b || !card) return;
+  const c = actv.list.find(x => x.id === card.dataset.cs); if (!c) return;
+  if (b.dataset.ra === 'review') reviewChangeset(c.id); else copyText('changeset ' + c.n);
+}
+
+// Path rules: read-only for Claude, focus files, pinned files. Claude follows them by procedure.
+const ruleDirect = (kind, p) => rules[kind].includes(p);
+const ruleOn = (kind, p) => kind === 'readonly' ? rules.readonly.some(r => p === r || p.startsWith(r + '/')) : ruleDirect(kind, p);
+function cleanRules(d){ const pick = x => [...new Set(arr(x).filter(v => validName(v, true)))].sort(); return { readonly:pick(d.readonly), focus:pick(d.focus), pinned:pick(d.pinned) }; }
+function writeRules(){
+  if (store.mode !== 'db') return Promise.resolve();
+  const data = { readonly:[...rules.readonly], focus:[...rules.focus], pinned:[...rules.pinned] };
+  store.rulesChain = (store.rulesChain || Promise.resolve()).then(() => withRetry(() => store.db.doc('meta/paths').set(data))).catch(reportErr);
+  return store.rulesChain;
+}
+async function toggleRule(kind, p){
+  if (store.mode !== 'db') { toast('Path rules need the project database.', 'err'); return; }
+  if (!guardWrite() || !p) return;
+  const set = new Set(rules[kind]); if (set.has(p)) set.delete(p); else set.add(p);
+  rules = { ...rules, [kind]:[...set].sort() };
+  renderTree(); await writeRules();
+  toast(`${{ readonly:'Read-only for Claude', focus:'Focus for Claude', pinned:'Pinned' }[kind]}: ${set.has(p) ? 'on' : 'off'} for ${p}`);
+}
+function remapRules(o, n){
+  const map = p => p === o ? n : p.startsWith(o + '/') ? n + p.slice(o.length) : p;
+  rules = { readonly:rules.readonly.map(map), focus:rules.focus.map(map), pinned:rules.pinned.map(map) };
+}
+function dropRules(p){
+  const keep = q => !(q === p || q.startsWith(p + '/'));
+  rules = { readonly:rules.readonly.filter(keep), focus:rules.focus.filter(keep), pinned:rules.pinned.filter(keep) };
+}
+function ruleBadges(p){
+  let h = '';
+  if (ruleOn('readonly', p)) { const d = ruleDirect('readonly', p); h += `<span class="rb${d ? '' : ' inh'}" title="Read-only for Claude${d ? '' : ' (set on a folder)'}">${ic('lock', 12)}</span>`; }
+  if (ruleDirect('focus', p)) h += `<span class="rb" title="Focus for Claude">${ic('focus', 12)}</span>`;
+  if (ruleDirect('pinned', p)) h += `<span class="rb" title="Pinned">${ic('pin', 12)}</span>`;
+  return h;
+}
+function ruleMenu(p){
+  if (store.mode !== 'db' || !p) return [];
+  const mark = on => on ? '✓ ' : '';
+  const items = ['-', { l:mark(ruleDirect('readonly', p)) + 'Read-only for Claude', f:() => toggleRule('readonly', p) },
+    { l:mark(ruleDirect('focus', p)) + 'Focus for Claude', f:() => toggleRule('focus', p) }];
+  if (p in fs) items.push({ l:mark(ruleDirect('pinned', p)) + 'Pin to the top', f:() => toggleRule('pinned', p) });
+  return items;
+}
+async function restoreDeleted(){
+  if (store.mode !== 'db') { toast('The file history needs the project database.'); return; }
+  let last;
+  try {
+    const snap = await busy(() => store.db.collection('history').get());
+    last = new Map();
+    for (const d of snap.docs) {
+      const h = d.data() || {};
+      if (typeof h.path !== 'string' || typeof h.content !== 'string' || !validName(h.path, true) || own(fs, h.path)) continue;
+      if (!last.has(h.path) || +h.rev > +last.get(h.path).rev) last.set(h.path, h);
+    }
+  } catch (e) { reportErr(e); return; }
+  const list = [...last.values()].sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0));
+  if (!list.length) { await modal('Restore a deleted file', 'The file history has no deleted or moved files.', [{ l:'Close', v:null, primary:1 }]); return; }
+  const rows = list.map((h, i) => `<div class="hrow"><b>${esc(h.path)}</b><span class="dim">rev ${+h.rev} · ${esc(fmtTime(h.at))}</span><span class="grow"></span><button class="btn" data-v="${i}">Restore</button></div>`).join('');
+  const r = await modal('Restore a deleted file', 'The last saved text of files that were deleted or moved.', [{ l:'Close', v:null, primary:1 }], `<div class="rv">${rows}</div>`);
+  const h = r == null ? null : list[+r];
+  if (!h || !guardWrite()) return;
+  if (dirs.has(h.path)) { toast('A folder with this name exists.', 'err'); return; }
+  try { await busy(() => writeFile(h.path, h.content, null)); recomputeDirs(); openTab(h.path); toast(`Restored ${h.path}`); } catch (e) { reportErr(e); }
+}
+async function openRules(){
+  if ('CLAUDE.md' in fs) { openTab('CLAUDE.md'); return; }
+  if (!guardWrite()) return;
+  try { await busy(() => writeFile('CLAUDE.md', RULES_TEMPLATE, null)); recomputeDirs(); openTab('CLAUDE.md'); toast('Created CLAUDE.md for the project rules'); }
+  catch (e) { reportErr(e); }
+}
+
 /* ---------- start ---------- */
 async function start(){
   let db = null;
@@ -759,6 +1157,7 @@ async function start(){
   try {
     const user = await window.claude.use('user');
     if (user && typeof user.can === 'function') { const c = await user.can('data.write'); if (c === false) store.canWrite = false; }
+    if (user && typeof user.id === 'function') { const id = await user.id(); if (typeof id === 'string' && /^[A-Za-z0-9_.~:@+-]{1,200}$/.test(id)) me.uid = id; }
   } catch (e) {}
   treeNote = 'Loading project…'; renderTree(); renderStatus();
   subscribe();
@@ -794,13 +1193,18 @@ function subscribe(){
   store.db.collection('files').onSnapshot(snap => {
     if (!snap.metadata.fromCache) clearTimeout(timer);
     applyFiles(snap);
-    if (first) { first = false; treeNote = 'No files yet.'; restoreUI(readJSON(UI_KEY + ':db')); finishStart(); }
+    if (first) { first = false; treeNote = 'No files yet.'; restoreUI(readJSON(UI_KEY + ':db')); finishStart(); startSeen(); }
   }, err => { clearTimeout(timer); toast('Lost the connection to the project data (' + (err && err.code) + '). Reload the page to reconnect.', 'err'); store.mode = 'offline'; renderStatus(); });
   store.db.doc('meta/dirs').onSnapshot(s => {
     const d = s.exists ? s.data() : null;
     explicitDirs = new Set(arr(d && d.list).filter(x => validName(x, true)));
     recomputeDirs(); renderTree();
   }, () => {});
+  store.db.doc('meta/paths').onSnapshot(s => { rules = cleanRules(s.exists ? (s.data() || {}) : {}); renderTree(); }, () => {});
+  store.db.collection('changesets').orderBy('at', 'desc').limit(MAX_CHANGESETS).onSnapshot(snap => {
+    actv.list = snap.docs.map(d => ({ id:d.id, ...(d.data() || {}) })).filter(c => typeof c.at === 'string' && typeof c.summary === 'string');
+    renderActivity(); if (!welcome.hidden) renderWelcome();
+  }, () => { actv.list = []; renderActivity(); });
   cm.available = true;
   store.db.collection('comments').orderBy('n').limit(MAX_COMMENTS).onSnapshot(snap => {
     cm.list = snap.docs.map(d => ({ id:d.id, ...(d.data() || {}) }))
@@ -815,7 +1219,8 @@ function applyFiles(snap){
     const x = d.data();
     if (!x || typeof x.path !== 'string' || typeof x.content !== 'string' || !validName(x.path, true) || docId(x.path) !== d.id) continue;
     nfs[x.path] = x.content;
-    nmeta[x.path] = { rev:+x.rev || 0, by:typeof x.by === 'string' ? x.by : '', at:typeof x.at === 'string' ? x.at : '' };
+    nmeta[x.path] = { rev:+x.rev || 0, by:typeof x.by === 'string' ? x.by : '', at:typeof x.at === 'string' ? x.at : '',
+      byUser:typeof x.byUser === 'string' ? x.byUser : null, changeset:typeof x.changeset === 'string' ? x.changeset : null };
   }
   for (const p of tabs) if (!(p in nfs) && meta[p]) goneBy[p] = meta[p].by;
   fs = nfs; meta = nmeta; recomputeDirs();
@@ -828,6 +1233,7 @@ function applyFiles(snap){
   }
   if (gone.length) toast(`Deleted in the project: ${gone.join(', ')}`);
   if (active && !tabs.includes(active)) { active = null; if (tabs.length) { setActive(tabs[0]); scheduleSearch(); return; } }
+  if (active && document.visibilityState === 'visible' && !isDirty(active)) markSeen(active, true);   // the person sees the open file change live
   render(); scheduleSearch();
 }
 function replaceBuffer(p, text){
@@ -866,7 +1272,7 @@ function setActive(p){
   if (active && tas[active]) view[active] = { st:tas[active].scrollTop, sl:tas[active].scrollLeft };
   active = p; if (p) selPath = p;
   for (const k in tas) tas[k].classList.toggle('on', k === p);
-  if (p) { let d = dirname(p); while (d) { expanded.add(d); d = dirname(d); } }
+  if (p) { let d = dirname(p); while (d) { expanded.add(d); d = dirname(d); } markSeen(p, true); }
   render();
   const t = tas[p];
   if (t) { if (view[p]) { t.scrollTop = view[p].st; t.scrollLeft = view[p].sl; } t.focus({ preventScroll:true }); sync(); caret(); }
@@ -919,7 +1325,7 @@ function render(){ renderTabs(); renderTree(); renderEditor(); renderStatus(); }
 function renderTabs(){
   tabsEl.innerHTML = tabs.map(p => {
     const dup = tabs.some(q => q !== p && base(q) === base(p));
-    return `<div class="tab${p === active ? ' on' : ''}${isDirty(p) ? ' dirty' : ''}${isConflict(p) ? ' conf' : ''}" role="tab" aria-selected="${p === active}" draggable="true" data-p="${esc(p)}" title="${esc(p)}">`
+    return `<div class="tab${p === active ? ' on' : ''}${isDirty(p) ? ' dirty' : ''}${isConflict(p) ? ' conf' : ''}${isNew(p) ? ' new' : ''}" role="tab" aria-selected="${p === active}" draggable="true" data-p="${esc(p)}" title="${esc(p)}">`
       + `<span class="fi" style="color:${langOf(p).color}">${ic('file')}</span><span class="nm">${esc(base(p))}</span>`
       + (dup ? `<span class="hint">${esc(base(dirname(p)) || '/')}</span>` : '')
       + `<button class="x" tabindex="-1" aria-label="Close ${esc(base(p))}">${ic('x')}</button></div>`;
@@ -933,12 +1339,13 @@ function kids(dir){
   const cmp = (a, b) => base(a).localeCompare(base(b), undefined, { sensitivity:'base', numeric:true });
   return [ds.sort(cmp), fl.sort(cmp)];
 }
-function rowHtml(p, depth, k){
+function rowHtml(p, depth, k, pinned){
   const open = expanded.has(p);
-  return `<div class="row${p === active ? ' act' : ''}${p === selPath ? ' sel' : ''}${k === 'f' && isDirty(p) ? ' dirty' : ''}" role="treeitem" draggable="true" data-p="${esc(p)}" data-k="${k}" style="--d:${depth}"${k === 'd' ? ` aria-expanded="${open}"` : ''}>`
+  const fresh = k === 'f' ? isNew(p) : !open && newDirs.has(p);
+  return `<div class="row${p === active ? ' act' : ''}${p === selPath && !pinned ? ' sel' : ''}${k === 'f' && isDirty(p) ? ' dirty' : ''}${fresh ? ' new' : ''}${pinned ? ' pinned' : ''}" role="treeitem" draggable="true" data-p="${esc(p)}" data-k="${k}" style="--d:${depth}"${k === 'd' ? ` aria-expanded="${open}"` : ''}>`
     + (k === 'd' ? `<span class="chev${open ? ' open' : ''}">${ic('chev', 14)}</span><span class="fi fold">${ic('folder')}</span>`
                  : `<i class="sp"></i><span class="fi" style="color:${langOf(p).color}">${ic('file')}</span>`)
-    + `<span class="nm">${esc(base(p))}</span></div>`;
+    + `<span class="nm"${pinned ? ` title="${esc(p)}"` : ''}>${esc(base(p))}</span>${store.mode === 'db' ? ruleBadges(p) : ''}</div>`;
 }
 function inputHtml(depth, k, val){
   return `<div class="row inp" style="--d:${depth}"><i class="sp"></i><span class="fi${k === 'd' ? ' fold' : ''}">${ic(k === 'd' ? 'folder' : 'file')}</span>`
@@ -951,7 +1358,9 @@ function emptyActions(){
     + `<button class="btn" data-a="sample">Load the sample project</button>`;
 }
 function renderTree(){
-  let h = '';
+  let h = '', anyNew = false;
+  newDirs = new Set();
+  for (const f in fs) if (isNew(f)) { anyNew = true; ensureParents(f, newDirs); }
   const walk = (dir, depth) => {
     if (pending && pending.mode !== 'rename' && pending.parent === dir) h += inputHtml(depth, pending.mode === 'dir' ? 'd' : 'f', '');
     const [ds, fl] = kids(dir);
@@ -962,6 +1371,9 @@ function renderTree(){
     for (const f of fl) h += pending && pending.mode === 'rename' && pending.path === f ? inputHtml(depth, 'f', base(f)) : rowHtml(f, depth, 'f');
   };
   if (store.mode !== 'connecting') walk('', 0);
+  const pins = store.mode === 'db' && !pending ? rules.pinned.filter(p => p in fs) : [];
+  if (h && pins.length) h = '<div class="pinhead">Pinned</div>' + pins.map(p => rowHtml(p, 0, 'f', true)).join('') + '<div class="pinsep"></div>' + h;
+  $('#btnExplorer').classList.toggle('dot', anyNew);
   tree.innerHTML = h || `<div class="empty"><p>${esc(treeNote)}</p>${store.mode === 'connecting' ? '' : emptyActions()}</div>`;
   const inp = tree.querySelector('input'); if (inp) bindInput(inp);
 }
@@ -979,14 +1391,25 @@ function renderWelcome(){
   $('#wBtns').innerHTML = store.mode === 'connecting' ? ''
     : `<button class="btn primary" data-a="new">New file</button><button class="btn" data-a="dir">Import folder…</button><button class="btn" data-a="qo">Go to file…</button>`
       + (db && !Object.keys(fs).length ? emptyActions() : '') + (db ? `<button class="btn" data-a="chat">Comments</button>` : '');
+  $('#wStat').innerHTML = db ? welcomeStatus() : '';
   $('#wNote').textContent = db
     ? "Files are stored in this artifact's project database. Claude can read and write them, and anyone you share this page with can read them. Do not store secrets here."
     : store.mode === 'local' ? "The project database is not available here, so files stay in this browser only and Claude can't see them." : '';
 }
+function welcomeStatus(){
+  const last = actv.list[0], fresh = Object.keys(meta).filter(isNew).length;
+  const wait = cm.list.filter(c => c.status !== 'resolved' && c.waitingFor === 'you').length;
+  const items = [];
+  if (last) items.push(`Latest changeset ${+last.n || ''} (${CS_LABEL[csState(last)]}, ${esc(fmtTime(last.at))}): ${esc(String(last.summary).split('\n')[0].slice(0, 120))} <button data-a="act">Show activity</button>`);
+  if (fresh) items.push(`${fresh} file${fresh === 1 ? '' : 's'} changed since you last opened ${fresh === 1 ? 'it' : 'them'}.`);
+  if (wait) items.push(`${wait} comment${wait === 1 ? ' waits' : 's wait'} for your answer. <button data-a="wait">Show</button>`);
+  return items.length ? '<h2>Status</h2><ul class="wstat">' + items.map(x => `<li>${x}</li>`).join('') + '</ul>' : '';
+}
 function renderCrumbs(){
   const parts = active.split('/');
   crumbs.innerHTML = parts.map((s, i) => `<span class="seg${i === parts.length - 1 ? ' last' : ''}">${esc(s)}</span>`).join(`<span class="sepc">${ic('chev', 12)}</span>`)
-    + `<span class="grow"></span><button data-a="save" title="Save (${keyText('save')})">${ic('save', 14)}<span>Save</span></button><button data-a="copy" title="Copy file content to the clipboard">${ic('copy', 14)}<span>Copy</span></button>`;
+    + `<span class="grow"></span><button data-a="save" title="Save (${keyText('save')})">${ic('save', 14)}<span>Save</span></button><button data-a="copy" title="Copy file content to the clipboard">${ic('copy', 14)}<span>Copy</span></button>`
+    + (store.mode === 'db' ? `<button data-a="hist" title="Show the older revisions of this file">${ic('hist', 14)}<span>History</span></button>` : '');
 }
 function renderConflict(){
   const p = active, show = !!p && isConflict(p);
@@ -1020,7 +1443,8 @@ function updateDirty(){
 }
 function renderSide(){
   const on = !app.classList.contains('noside');
-  $('#pExplorer').hidden = sideView !== 'explorer'; $('#pSearch').hidden = sideView !== 'search';
+  $('#pExplorer').hidden = sideView !== 'explorer'; $('#pSearch').hidden = sideView !== 'search'; $('#pActivity').hidden = sideView !== 'activity';
+  $('#btnActivity').classList.toggle('on', on && sideView === 'activity');
   $('#btnExplorer').classList.toggle('on', on && sideView === 'explorer');
   $('#btnSearch').classList.toggle('on', on && sideView === 'search');
   $('#btnChat').classList.toggle('on', app.classList.contains('chat'));
@@ -1391,19 +1815,26 @@ function paintComments(){
   cmk.innerHTML = [...at].map(([l, cs]) => { const refs = cs.map(c => '#' + c.n).join(', ');
     return `<button data-cm="${esc(cs[0].id)}" style="top:${PAD_T + (l - 1) * LH}px;height:${LH}px" title="Comment ${esc(refs)}" aria-label="Show comment ${esc(refs)}">${ic('cmt', 13)}</button>`; }).join('');
 }
-const editBox = (id, kind, val, label) => `<div class="cedit"><textarea data-for="${esc(id)}" data-kind="${kind}" aria-label="${kind === 'edit' ? 'Edit comment' : 'Reply'}" placeholder="${keyText('submit')} saves">${esc(val)}</textarea>`
+const kindOf = c => own(KINDS, c.kind) ? c.kind : 'note', prioOf = c => own(PRIOS, c.priority) ? c.priority : 'normal';
+const PRIO_RANK = { high:0, normal:1, low:2 };
+const kindSelects = (k, pr, idp) => `<div class="ksel"><select id="${idp}Kind" data-ks="kind" aria-label="Kind">${Object.entries(KINDS).map(([v, l]) => `<option value="${v}"${v === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`
+  + `<select id="${idp}Prio" data-ks="prio" aria-label="Priority">${Object.entries(PRIOS).map(([v, l]) => `<option value="${v}"${v === pr ? ' selected' : ''}>${l} priority</option>`).join('')}</select></div>`;
+const editBox = (id, kind, val, label, c) => `<div class="cedit">${kind === 'edit' && c ? kindSelects(kindOf(c), prioOf(c), 'e_' + id.replace(/[^\w-]/g, '')) : ''}<textarea data-for="${esc(id)}" data-kind="${kind}" aria-label="${kind === 'edit' ? 'Edit comment' : 'Reply'}" placeholder="${keyText('submit')} saves">${esc(val)}</textarea>`
   + `<div class="crow"><button class="btn" data-act="cancel">Cancel</button><button class="btn primary" data-act="${kind === 'edit' ? 'saveEdit' : 'saveReply'}">${label}</button></div></div>`;
 function cardHtml(c, a){
   const res = c.status === 'resolved', mine = c.by !== 'claude';
-  const loc = a.gone ? 'file deleted' : a.outdated ? `line ${+c.startLine || 1}` : `line ${a.l1}${a.l2 > a.l1 ? '–' + a.l2 : ''}`;
+  const loc = (cm.sort !== 'pos' ? base(c.path) + ', ' : '') + (a.gone ? 'file deleted' : a.outdated ? `line ${+c.startLine || 1}` : `line ${a.l1}${a.l2 > a.l1 ? '–' + a.l2 : ''}`);
   const q = c.quote.length > 600 ? c.quote.slice(0, 600) + '…' : c.quote;
   const replies = Array.isArray(c.replies) ? c.replies.filter(r => r && typeof r.text === 'string') : [];
   return `<div class="card${res ? ' res' : ''}${cm.flash === c.id ? ' flash' : ''}" data-id="${esc(c.id)}">`
     + `<div class="chead" data-act="jump" title="Show in the editor"><b>#${+c.n}</b><span>${esc(loc)}</span><span class="grow"></span><span>${mine ? 'You' : 'Claude'} · ${esc(fmtTime(c.at))}</span></div>`
     + (a.gone ? '<span class="tag">File deleted</span> ' : a.outdated ? '<span class="tag">Outdated: the text changed</span> ' : '')
     + (res ? `<span class="tag">Resolved${c.resolvedBy === 'claude' ? ' by Claude' : ''}</span>` : '')
+    + (kindOf(c) !== 'note' ? ` <span class="tag k-${kindOf(c)}">${KINDS[kindOf(c)]}</span>` : '')
+    + (prioOf(c) !== 'normal' ? ` <span class="tag p-${prioOf(c)}">${PRIOS[prioOf(c)]} priority</span>` : '')
+    + (!res && c.waitingFor === 'you' ? ' <span class="tag wait-you">Waiting for you</span>' : !res && c.waitingFor === 'claude' ? ' <span class="tag wait-claude">Waiting for Claude</span>' : '')
     + `<div class="quote" data-act="jump" title="Show in the editor">${esc(q)}</div>`
-    + (cm.editing === c.id ? editBox(c.id, 'edit', c.text, 'Save') : `<div class="ctext">${mdLite(c.text)}</div>`)
+    + (cm.editing === c.id ? editBox(c.id, 'edit', c.text, 'Save', c) : `<div class="ctext">${mdLite(c.text)}</div>`)
     + replies.map(r => `<div class="reply${r.by === 'claude' ? ' claude' : ''}"><div class="who">${r.by === 'claude' ? 'Claude' : 'You'} · ${esc(fmtTime(r.at))}</div><div class="ctext">${mdLite(r.text)}</div></div>`).join('')
     + (cm.replying === c.id ? editBox(c.id, 'reply', '', 'Reply') : '')
     + '<div class="cacts">'
@@ -1421,12 +1852,19 @@ function renderComments(){
   if (open.length) { if (!cnt) { cnt = document.createElement('span'); cnt.className = 'cnt'; btn.appendChild(cnt); } cnt.textContent = open.length > 99 ? '99+' : String(open.length); }
   else if (cnt) cnt.remove();
   if (!cm.available) { clist.innerHTML = `<p class="empty">${store.mode === 'connecting' ? 'Connecting…' : 'Comments need the project database, which is not available here.'}</p>`; return; }
-  const shown = cm.list.filter(c => cm.filter === 'all' || (cm.filter === 'open') === (c.status !== 'resolved'));
+  const shown = cm.list.filter(c => (cm.filter === 'all' || (cm.filter === 'open') === (c.status !== 'resolved'))
+    && (cm.kind === 'all' || (cm.kind === 'you' ? c.status !== 'resolved' && c.waitingFor === 'you' : kindOf(c) === cm.kind)));
   // Keep text that is being typed in reply or edit boxes across re-renders.
-  const drafts = [...clist.querySelectorAll('textarea[data-for]')].map(t => ({ id:t.dataset.for, kind:t.dataset.kind, v:t.value, f:document.activeElement === t, s:t.selectionStart, e:t.selectionEnd }));
+  const drafts = [...clist.querySelectorAll('textarea[data-for]')].map(t => ({ id:t.dataset.for, kind:t.dataset.kind, v:t.value, f:document.activeElement === t, s:t.selectionStart, e:t.selectionEnd,
+    sel:[...t.closest('.cedit').querySelectorAll('select[data-ks]')].map(x => [x.dataset.ks, x.value]) }));
   const top = clist.scrollTop;
-  if (!shown.length) clist.innerHTML = `<p class="empty">${cm.filter === 'resolved' ? 'No resolved comments.' : `No open comments. Select text in a file and press ${keyText('addComment')} or the Comment button.`}</p>`;
-  else {
+  if (!shown.length && cm.kind !== 'all') clist.innerHTML = '<p class="empty">No comments match this filter.</p>';
+  else if (!shown.length) clist.innerHTML = `<p class="empty">${cm.filter === 'resolved' ? 'No resolved comments.' : `No open comments. Select text in a file and press ${keyText('addComment')} or the Comment button.`}</p>`;
+  else if (cm.sort !== 'pos') {
+    const at = c => Date.parse(c.at) || 0;
+    const list = shown.slice().sort(cm.sort === 'prio' ? (x, y) => (PRIO_RANK[prioOf(x)] - PRIO_RANK[prioOf(y)]) || (y.n - x.n) : (x, y) => (at(y) - at(x)) || (y.n - x.n));
+    clist.innerHTML = list.map(c => cardHtml(c, anchorOf(c))).join('');
+  } else {
     const groups = new Map();
     for (const c of shown) { if (!groups.has(c.path)) groups.set(c.path, []); groups.get(c.path).push([c, anchorOf(c)]); }
     let h = '';
@@ -1438,7 +1876,7 @@ function renderComments(){
   }
   for (const d of drafts) {
     const t = clist.querySelector(`textarea[data-for="${CSS.escape(d.id)}"][data-kind="${d.kind}"]`);
-    if (t) { t.value = d.v; if (d.f) { t.focus(); t.setSelectionRange(d.s, d.e); } }
+    if (t) { t.value = d.v; for (const [k, v] of d.sel) { const x = t.closest('.cedit').querySelector(`select[data-ks="${k}"]`); if (x) x.value = v; } if (d.f) { t.focus(); t.setSelectionRange(d.s, d.e); } }
   }
   clist.scrollTop = top;
 }
@@ -1477,6 +1915,7 @@ function openComposer(){
   cm.draft = { path:active, quote, startLine:l1, endLine:l2, unsaved:isDirty(active) };
   cbox.innerHTML = `<div class="lbl">Comment on ${esc(base(active))}, line ${l1}${l2 > l1 ? '–' + l2 : ''}${cm.draft.unsaved ? ' (unsaved text)' : ''}</div>`
     + `<textarea id="cboxIn" placeholder="What should Claude look at? ${keyText('submit')} saves." aria-label="Comment"></textarea>`
+    + kindSelects('note', 'normal', 'cbox')
     + '<div class="crow"><button class="btn" data-x="cancel">Cancel</button><button class="btn primary" data-x="save">Comment</button></div>';
   askPill.hidden = true; cbox.hidden = false;
   const gw = parseFloat(getComputedStyle($('#gutter')).width) || 40, hBox = cbox.offsetHeight;
@@ -1496,7 +1935,8 @@ async function saveComposer(){
   const id = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   try {
     await busy(() => withRetry(() => store.db.doc('comments/' + id).set({ n, path:d.path, startLine:d.startLine, endLine:d.endLine, quote:d.quote, text,
-      at:new Date().toISOString(), by:'you', status:'open', replies:[], unsaved:d.unsaved })));
+      at:new Date().toISOString(), by:'you', status:'open', replies:[], unsaved:d.unsaved,
+      kind:own(KINDS, $('#cboxKind').value) ? $('#cboxKind').value : 'note', priority:own(PRIOS, $('#cboxPrio').value) ? $('#cboxPrio').value : 'normal', waitingFor:'claude' })));
     closeComposer(); tas[active]?.focus();
     toast(`Comment #${n} added. Mention #${n} to Claude in the conversation.`);
   } catch (e) { reportErr(e); }
@@ -1528,13 +1968,14 @@ async function commentAction(act, id, card){
     if (!text) return;
     if (text.length > MAX_COMMENT_CHARS) { toast('Too long (limit 20,000 characters).', 'err'); return; }
     const now = new Date().toISOString();
-    const ok = act === 'saveEdit' ? await updateComment(id, { text, edited:now })
-      : await updateComment(id, { replies:[...(Array.isArray(c.replies) ? c.replies : []), { by:'you', text, at:now }] });
+    const ks = card.querySelector('[data-ks="kind"]'), ps = card.querySelector('[data-ks="prio"]');
+    const ok = act === 'saveEdit' ? await updateComment(id, { text, edited:now, kind:ks && own(KINDS, ks.value) ? ks.value : kindOf(c), priority:ps && own(PRIOS, ps.value) ? ps.value : prioOf(c) })
+      : await updateComment(id, { replies:[...(Array.isArray(c.replies) ? c.replies : []), { by:'you', text, at:now }], waitingFor:'claude' });
     if (ok) { cm.replying = cm.editing = null; ta.value = ''; renderComments(); }
     return;
   }
-  if (act === 'resolve') { await updateComment(id, { status:'resolved', resolvedBy:'you', resolvedAt:new Date().toISOString() }); return; }
-  if (act === 'reopen') { await updateComment(id, { status:'open' }); return; }
+  if (act === 'resolve') { await updateComment(id, { status:'resolved', resolvedBy:'you', resolvedAt:new Date().toISOString(), waitingFor:null }); return; }
+  if (act === 'reopen') { await updateComment(id, { status:'open', waitingFor:'claude' }); return; }
   if (act === 'delete') {
     const r = await modal(`Delete comment #${c.n}?`, 'This deletes the comment and its replies. You cannot undo this.', [{ l:'Delete', v:1, danger:1 }, { l:'Cancel', v:0 }]);
     if (r) { try { await busy(() => withRetry(() => store.db.doc('comments/' + id).delete())); } catch (e) { reportErr(e); } }
@@ -1555,11 +1996,12 @@ function placePill(){
 /* ---------- explorer actions ---------- */
 function targetDir(){ return selPath ? (dirs.has(selPath) ? selPath : dirname(selPath)) : ''; }
 function expandTo(p){ let d = p; while (d) { expanded.add(d); d = dirname(d); } }
-function showView(v){
-  if (!app.classList.contains('noside') && sideView === v) app.classList.add('noside');
+function showView(v, keep){
+  if (!keep && !app.classList.contains('noside') && sideView === v) app.classList.add('noside');
   else { sideView = v; app.classList.remove('noside'); if (narrow()) app.classList.remove('chat'); }
   renderSide(); persist();
   if (sideView === 'search' && !app.classList.contains('noside')) { sIn.focus(); runSearch(); }
+  if (sideView === 'activity') renderActivity();
 }
 function startNew(mode){ if (!guardWrite()) return; const parent = targetDir(); if (parent) expandTo(parent); pending = { mode, parent }; sideView = 'explorer'; app.classList.remove('noside'); renderSide(); renderTree(); }
 function startRename(p){ if (!guardWrite()) return; expandTo(dirname(p)); pending = { mode:'rename', path:p }; sideView = 'explorer'; app.classList.remove('noside'); renderSide(); renderTree(); }
@@ -1622,19 +2064,21 @@ async function moveStore(o, n){
     if (store.mode === 'db') {
       for (const p of affected) {
         const q = map(p);
-        try { const rev = await writeFile(q, fs[q], null); if (tabBase[q]) tabBase[q].rev = rev; await withRetry(() => store.db.doc('files/' + docId(p)).delete()); }
+        try { const rev = await writeFile(q, fs[q], null); if (tabBase[q]) tabBase[q].rev = rev; await deleteFile(p); }
         catch (e) { reportErr(e); break; }
       }
     }
     await writeDirs();
     await moveComments(o, n);
+    if (store.mode === 'db') { const before = JSON.stringify(rules); remapRules(o, n); if (JSON.stringify(rules) !== before) await writeRules(); }
   }));
   render(); persist(); scheduleSearch(); paintComments();
 }
 async function del(p){
   if (!guardWrite()) return;
   const isDir = dirs.has(p), files = isDir ? Object.keys(fs).filter(f => f.startsWith(p + '/')) : [p];
-  const r = await modal(`Delete "${base(p)}"?`, (isDir ? `This deletes the folder and the ${files.length} file${files.length === 1 ? '' : 's'} in it. ` : '') + 'You cannot undo this.',
+  const r = await modal(`Delete "${base(p)}"?`, (isDir ? `This deletes the folder and the ${files.length} file${files.length === 1 ? '' : 's'} in it. ` : '')
+    + (store.mode === 'db' ? 'The last text stays in the file history. Use the command "Restore a deleted file" to get it back.' : 'You cannot undo this.'),
     [{ l:'Delete', v:1, danger:1 }, { l:'Cancel', v:0 }]);
   if (!r) return;
   const hit = q => q === p || q.startsWith(p + '/');
@@ -1643,6 +2087,7 @@ async function del(p){
     for (const t of [...tabs]) if (hit(t) && !(t in fs)) dropTab(t, true);
     explicitDirs = new Set([...explicitDirs].filter(d => !hit(d))); expanded = new Set([...expanded].filter(d => !hit(d)));
     recomputeDirs(); await writeDirs();
+    if (store.mode === 'db') { const before = JSON.stringify(rules); dropRules(p); if (JSON.stringify(rules) !== before) await writeRules(); }
   }));
   selPath = dirname(p) || null;
   if (!tabs.includes(active)) { active = null; if (tabs.length) { setActive(tabs[0]); return; } }
@@ -1711,7 +2156,10 @@ function modal(title, msg, btns, bodyHtml){
       + btns.map((b, i) => `<button class="btn${b.primary ? ' primary' : ''}${b.danger ? ' danger' : ''}" data-i="${i}">${esc(b.l)}</button>`).join('') + '</div></div>';
     md.hidden = false; (md.querySelector('.btn.primary') || md.querySelector('.btn')).focus();
     const done = v => { md.hidden = true; md.onclick = md.onkeydown = null; if (back && back.isConnected) back.focus(); res(v); };
-    md.onclick = e => { const b = e.target.closest('button[data-i]'); if (b) done(btns[b.dataset.i].v); else if (e.target === md) done(null); };
+    md.onclick = e => {
+      const b = e.target.closest('button[data-i]'), v = e.target.closest('button[data-v]');   // data-v: a choice inside the body
+      if (b) done(btns[b.dataset.i].v); else if (v) done(v.dataset.v); else if (e.target === md) done(null);
+    };
     md.onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape') done(null); };
   });
 }
@@ -1729,6 +2177,8 @@ function treeMenu(p){
   const items = [{ l:'New file', k:keyText('newFile'), f:() => startNew('file') }, { l:'New folder', f:() => startNew('dir') }];
   if (p) items.push('-', { l:'Rename', k:'F2', f:() => startRename(p) }, { l:'Delete', k:'Del', f:() => del(p) }, '-', { l:'Copy path', f:() => copyText(p) });
   if (p && dirs.has(p)) items.push({ l:'Find in folder…', f:() => { sInc.value = p + '/'; openSearch(false); } });
+  if (p && p in fs && store.mode === 'db') items.push({ l:'Show history', f:() => showHistory(p) });
+  items.push(...ruleMenu(p));
   return items;
 }
 function fuzzy(q, p){
@@ -1817,7 +2267,16 @@ const CMDS = [
   { id:'nextTab', l:'Next tab', run:() => cycleTab(1) },
   { id:'collapse', l:'Collapse all folders', run:() => { expanded.clear(); renderTree(); persist(); } },
   { id:'copyFile', l:'Copy file content', file:1, run:() => copyText(tas[active].value) },
-  { id:'shortcuts', l:'Show keyboard shortcuts', run:() => showShortcuts() }
+  { id:'shortcuts', l:'Show keyboard shortcuts', run:() => showShortcuts() },
+  { id:'history', l:'Show file history', file:1, run:() => showHistory(active) },
+  { id:'activity', l:'Show activity (changesets)', run:() => showView('activity', true) },
+  { id:'reviewLast', l:'Review the latest changeset', run:() => { if (actv.list[0]) reviewChangeset(actv.list[0].id); else toast('No changesets yet.'); } },
+  { id:'markSeen', l:'Mark all files as seen', run:() => markAllSeen() },
+  { id:'restoreDeleted', l:'Restore a deleted file…', run:() => restoreDeleted() },
+  { id:'rules', l:'Open project rules (CLAUDE.md)', run:() => openRules() },
+  { id:'toggleReadonly', l:'Toggle read-only for Claude (current file)', file:1, run:() => toggleRule('readonly', active) },
+  { id:'toggleFocus', l:'Toggle focus for Claude (current file)', file:1, run:() => toggleRule('focus', active) },
+  { id:'togglePin', l:'Toggle pin (current file)', file:1, run:() => toggleRule('pinned', active) }
 ];
 function runCmd(id){
   const c = CMDS.find(x => x.id === id); if (!c) return;
@@ -1930,16 +2389,25 @@ tabsEl.addEventListener('drop', e => {
 });
 tabsEl.addEventListener('dragend', () => { dragP = null; renderTabs(); });
 
-crumbs.addEventListener('click', async e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.a === 'save') { if (await save(active)) toast('Saved'); } else copyText(tas[active].value); });
+crumbs.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.a === 'save') { if (await save(active)) toast('Saved'); }
+  else if (b.dataset.a === 'hist') showHistory(active);
+  else copyText(tas[active].value);
+});
 conflictEl.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) conflictAction(b.dataset.c); });
 statusEl.addEventListener('click', e => { if (e.target.closest('[data-a="goto"]')) openQO(':'); else if (e.target.closest('[data-a="cm"]')) toggleCm(true); else if (e.target.closest('[data-a="pal"]')) openQO('>'); });
 welcome.addEventListener('click', e => {
   const a = e.target.closest('button')?.dataset.a;
   if (a === 'new') startNew('file'); else if (a === 'dir') { if (guardWrite()) importDir.click(); } else if (a === 'qo') openQO();
   else if (a === 'migrate') migrateLocal(); else if (a === 'sample') loadSample(); else if (a === 'chat') toggleCm(true);
+  else if (a === 'act') showView('activity', true); else if (a === 'wait') { cm.filter = 'open'; cm.kind = 'you'; $('#cKind').value = 'you'; toggleCm(true); }
 });
 $('#btnExplorer').onclick = () => showView('explorer');
 $('#btnSearch').onclick = () => showView('search');
+$('#btnActivity').onclick = () => showView('activity');
+$('#aSeen').onclick = () => markAllSeen();
+$('#alist').addEventListener('click', onCsClick);
 $('#btnChat').onclick = () => toggleCm();
 $('#btnReset').onclick = resetWorkspace;
 $('#tNewFile').onclick = () => startNew('file');
@@ -2008,6 +2476,8 @@ sResults.addEventListener('click', async e => {
 // comments
 $('#chClose').onclick = () => toggleCm(false);
 for (const b of document.querySelectorAll('.cfilter button')) b.onclick = () => { cm.filter = b.dataset.f; renderComments(); };
+$('#cKind').onchange = e => { cm.kind = e.target.value; renderComments(); };
+$('#cSort').onchange = e => { cm.sort = e.target.value; renderComments(); };
 clist.addEventListener('click', e => {
   const cp = e.target.closest('[data-copy]'); if (cp) { copyText(cp.parentElement.querySelector('code').textContent); return; }
   const b = e.target.closest('[data-act]'), card = e.target.closest('.card');
@@ -2022,7 +2492,7 @@ clist.addEventListener('keydown', e => {
 });
 cbox.addEventListener('click', e => { const b = e.target.closest('[data-x]'); if (!b) return; if (b.dataset.x === 'save') saveComposer(); else { closeComposer(); tas[active]?.focus(); } });
 cbox.addEventListener('keydown', e => {
-  e.stopPropagation();
+  e.stopPropagation();   // also covers the kind and priority selects
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveComposer(); }
   else if (e.key === 'Escape') { closeComposer(); tas[active]?.focus(); }
 });

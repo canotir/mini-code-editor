@@ -6,6 +6,20 @@ All dates are in ISO 8601 (UTC).
 
 ### Added
 - Disclaimer in `README.md`: Mini Code is not affiliated with Microsoft.
+- File history: the page keeps the last 5 revisions of each file in `history/`. The History button shows them, compares them and restores them into the editor.
+- Changesets in `changesets/` and the Activity panel: review the diff of each changeset, undo an applied changeset, apply or reject a proposal.
+- Change markers for files that changed since the person opened them. Kept privately for each person in `data/users/<uid>/seen`, or in the browser without a user ID.
+- Path rules in `meta/paths`: read-only for Claude, focus files and pinned files. Explorer menu items and commands for them. Command "Open project rules (CLAUDE.md)".
+- Comment fields `kind`, `priority` and `waitingFor`, with badges, a kind filter and sorting by position, priority or time.
+- Status block on the welcome screen.
+- Command "Restore a deleted file": the page keeps the last text of deleted and moved files in the file history.
+
+### Changed
+- File records get the fields `changeset` and `byUser`. File IDs for new paths can have at most 188 bytes, so that history IDs stay in the segment limit.
+- `docs/claude-integration.md`: new procedures for the file history, changesets, proposals, path rules and comment states.
+- A file that is created again continues the revision numbers of its history.
+- The delete dialog tells how to restore a file.
+- On the branch `dev`, the prompts in `README.md` and `docs/quick-start-prompt.md` install the branch `dev`.
 
 ## 0.4.2 – 2026-11-25
 
