@@ -2,6 +2,19 @@
 
 All dates are in ISO 8601 (UTC).
 
+## Unreleased
+
+### Added
+- `jelk.json`: manifest for the jelk package manager. Mini Code is the first test package. The manifest refers to the current paths, so the old prompts and the `/mini-code` skill continue to work.
+- Meta tag `jelk-package` in `index.html` and the line `Jelk-package:` in `skills/mini-code/SKILL.md`.
+- Data model version in the record `meta/schema`. The page writes `version: 1` if the record is missing. If the data has a newer data model, the page becomes read-only and the status bar shows "Project (read only: newer data model)".
+- `docs/data-notes.md`: the data model version, the data changes of each version and the rules for migrations.
+
+### Changed
+- `docs/claude-integration.md`: Claude checks `meta/schema` before it writes data (section 2.3).
+- `CLAUDE.md`: the branch model with `main` and `dev`, the new version locations and the rule for data model changes.
+- The prompts in `docs/quick-start-prompt.md` select the branch `dev`.
+
 ## 0.6.0 – 2026-11-26
 
 ### Added

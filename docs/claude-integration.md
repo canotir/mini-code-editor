@@ -33,6 +33,7 @@ If the database is not available, Mini Code starts in browser-only mode. The sta
 | `changesets/<cid>/files/<id>` | The proposed text of one file in a proposal (section 7.3) |
 | `meta/paths` | Path rules: read-only, focus and pinned paths (section 8) |
 | `data/users/<uid>/seen` | Private for each person: the last revision that the person saw of each file (section 9) |
+| `meta/schema` | The data model version: `{version, app, at}` (section 2.3) |
 
 ### 2.1 File ID
 
@@ -57,9 +58,17 @@ The ID must not be longer than 188 bytes. The history ID adds `@` and the revisi
 - `changeset`: the ID of the changeset that made this revision, or `null`.
 - `byUser`: written only by the page: the user ID of the person who saved. The page uses it to find its own saves (section 9).
 
+### 2.3 Data model version
+
+This document describes data model version 1. `docs/data-notes.md` lists the changes of each version.
+
+1. Read `meta/schema` before you write data. If the record is missing, the version is 1.
+2. If `version` is higher than 1, do not write data. Tell the user that the data has a newer data model, and read the `docs/claude-integration.md` of the newer Mini Code version first.
+3. Do not write, change or delete `meta/schema`. The page writes it.
+
 ## 3 Rules for writing files (for Claude)
 
-1. Read the file before you change it. Record its database `version` and its `rev`.
+1. Check the data model version (section 2.3). Read the file before you change it. Record its database `version` and its `rev`.
 2. Write the old record to the file history first (section 6).
 3. Write with `set` or `update`. Always give `ifVersion` with the version that you read.
 4. Set `rev` to the old rev + 1, `by` to `"claude"`, `at` to the current time and `changeset` to the ID of the changeset of this turn.

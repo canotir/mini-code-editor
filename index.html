@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mini Code Editor</title>
-<meta name="mini-code-version" content="0.6.0">
+<meta name="mini-code-version" content="0.7.0-dev">
+<meta name="jelk-package" content="mini-code@0.7.0-dev">
 <!--
   Mini Code Editor: a single-file code editor that runs in the browser. The version is in the meta tag "mini-code-version".
+  The meta tag "jelk-package" identifies the jelk package and its version. Keep both tags in the first 15 lines.
   Files are stored in this artifact's project database, so Claude can read and write them.
   This content was generated with AI support (Claude, Anthropic) and subsequently
   checked and, where necessary, revised by a human. Examine it before use.
@@ -825,6 +827,10 @@ let rules = { readonly:[], focus:[], pinned:[] }, newDirs = new Set();
 const histId = (p, rev) => docId(p) + '@' + rev;
 const own = (o, k) => typeof k === 'string' && Object.hasOwn(o, k);
 const nowIso = () => new Date().toISOString();
+// Data model version in meta/schema (docs/data-notes.md). Version 1 = the data model of Mini Code 0.5.0 to 0.7.0.
+// Increase it only with a migration that adds records or fields and keeps the old ones (no deletes).
+const DATA_SCHEMA = 1;
+const schema = { stored:null, newer:false, writing:false };
 let historyWarned = false;
 function warnHistory(){ if (!historyWarned) { historyWarned = true; toast('The old revision could not be kept in the file history. The save itself worked.', 'err'); } }
 
@@ -910,7 +916,7 @@ async function writeSeen(){
   const ids = new Set(Object.keys(meta).map(docId));
   for (const k of Object.keys(seen.revs)) if (!ids.has(k)) delete seen.revs[k];   // keep the record small
   const local = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen.revs)); } catch (e) {} };
-  if (!me.uid || seen.local) { local(); return; }
+  if (!me.uid || seen.local || schema.newer) { local(); return; }   // newer data model: write nothing to the database
   if (seen.writing) { seen.again = true; return; }
   seen.writing = true;
   try {
@@ -1201,6 +1207,7 @@ function subscribe(){
     recomputeDirs(); renderTree();
   }, () => {});
   store.db.doc('meta/paths').onSnapshot(s => { rules = cleanRules(s.exists ? (s.data() || {}) : {}); renderTree(); }, () => {});
+  watchSchema();
   store.db.collection('changesets').orderBy('at', 'desc').limit(MAX_CHANGESETS).onSnapshot(snap => {
     actv.list = snap.docs.map(d => ({ id:d.id, ...(d.data() || {}) })).filter(c => typeof c.at === 'string' && typeof c.summary === 'string');
     renderActivity(); if (!welcome.hidden) renderWelcome();
@@ -1211,6 +1218,26 @@ function subscribe(){
       .filter(c => typeof c.path === 'string' && typeof c.text === 'string' && typeof c.quote === 'string' && Number.isFinite(+c.n));
     renderComments(); paintComments(); renderStatus();
   }, () => { cm.available = false; renderComments(); });
+}
+// A newer page can store data that this page does not know. Writes from this page could then make that data
+// inconsistent, so the page becomes read-only. A missing record means version 1: the page writes it once.
+// The page never changes or deletes an existing record.
+function watchSchema(){
+  const ref = store.db.doc('meta/schema');
+  ref.onSnapshot(s => {
+    const d = s.exists ? (s.data() || {}) : null;
+    const v = d && Number.isInteger(d.version) && d.version > 0 ? d.version : null;
+    schema.stored = v;
+    if (v !== null && v > DATA_SCHEMA && !schema.newer) {
+      schema.newer = true; store.canWrite = false;
+      for (const p in tas) tas[p].readOnly = true;
+      toast(`A newer version of Mini Code changed the project data (data model ${v}). This page can only read it. Update the page.`, 'err');
+      render(); renderComments();
+    } else if (!s.exists && !(s.metadata && s.metadata.fromCache) && store.canWrite && !schema.writing) {
+      schema.writing = true;
+      withRetry(async () => { if (!(await ref.get()).exists) await ref.set({ version:DATA_SCHEMA, app:APP_VERSION, at:nowIso() }); }).catch(() => {});
+    }
+  }, () => {});
 }
 function applyFiles(snap){
   if (store.hold) { store.heldSnap = snap; return; }
@@ -1422,7 +1449,7 @@ function renderConflict(){
 }
 function renderStatus(){
   const t = tas[active], unsaved = tabs.filter(isDirty).length;
-  const mode = store.mode === 'db' ? (store.busy ? 'Saving…' : store.canWrite ? 'Project synced' : 'Project (read only)')
+  const mode = store.mode === 'db' ? (store.busy ? 'Saving…' : store.canWrite ? 'Project synced' : schema.newer ? 'Project (read only: newer data model)' : 'Project (read only)')
     : store.mode === 'local' ? (storageOK ? 'Browser storage only' : 'Browser storage blocked: work is not kept')
     : store.mode === 'offline' ? 'Disconnected: reload the page' : 'Connecting…';
   const oc = cm.list.filter(c => c.status !== 'resolved').length;

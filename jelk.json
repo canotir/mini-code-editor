@@ -1,0 +1,20 @@
+{
+  "jelk": 1,
+  "name": "mini-code",
+  "version": "0.7.0-dev",
+  "description": "A single-file code editor that you and Claude share.",
+  "license": "MIT",
+  "homepage": "https://github.com/canotir/mini-code-editor",
+  "parts": {
+    "artifact": {
+      "entry": "index.html",
+      "files": ["index.html"],
+      "capabilities": {"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}},
+      "connectors": [],
+      "claudeDocs": ["docs/claude-integration.md"],
+      "dataNotes": "docs/data-notes.md"
+    },
+    "skill": {"name": "mini-code", "path": "skills/mini-code/SKILL.md"},
+    "automations": []
+  }
+}

@@ -6,6 +6,7 @@ description: Create, update, open or list Mini Code artifacts (the single-file c
 # Mini Code
 
 Skill version: 0.6.0
+Jelk-package: mini-code@0.7.0-dev
 
 This skill manages Mini Code artifacts. Mini Code is a code editor in one HTML file. Each Mini Code artifact has its own project database with its own files and comments.
 
