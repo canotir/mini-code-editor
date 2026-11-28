@@ -8,7 +8,7 @@ Mini Code is a code editor in one HTML file. It runs in a browser, or as a claud
 ## Structure
 - `index.html`: the full application (HTML, CSS and JavaScript).
 - `docs/claude-integration.md`: data model and procedures for artifact mode.
-- `skills/mini-code/SKILL.md`: the Claude skill that creates, updates, opens and lists Mini Code artifacts. `docs/skill.md` describes it.
+- `skills/mini-code/SKILL.md`: the Claude skill that creates, opens and lists Mini Code artifacts. jelk installs and updates the page and the skill as one package. The skill never updates an artifact or itself. `docs/skill.md` describes it.
 - `jelk.json`: the manifest for the jelk package manager. It refers to `index.html`, `docs/claude-integration.md`, `docs/data-notes.md` and `skills/mini-code/SKILL.md`. Keep their paths.
 - `docs/data-notes.md`: the data model version and the data changes of each version.
 

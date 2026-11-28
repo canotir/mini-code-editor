@@ -26,6 +26,9 @@ You can use Mini Code in two modes:
   - Change markers: a dot marks files that changed since you opened them the last time. The markers are kept for each person and work across devices.
   - Path rules in the Explorer menu: read-only for Claude, focus files for Claude, and pinned files at the top.
   - Comment kinds (note, question, bug, to-do, idea), priorities, "Waiting for you" and "Waiting for Claude", a kind filter, and sorting.
+- Claude artifact mode only, from version 0.7.0:
+  - Data model version in the project database. A page that is older than the data opens read-only, so it cannot damage data of a newer version. Refer to [docs/data-notes.md](docs/data-notes.md).
+  - Package for the jelk package manager (`jelk.json`). jelk installs and updates the page and the skill.
 
 ## Supported languages
 
@@ -72,36 +75,27 @@ All screenshots show sample content. They were made automatically with a headles
 
 ## Quick start with Claude
 
-Install the Claude skill `mini-code` one time. Copy this prompt into a chat with Claude. The chat must have a shell and artifact tools.
+Mini Code is a package for the jelk package manager. jelk installs and updates the page and the Claude skill `mini-code` together. Type this in a chat with Claude that has the skill `jelk`:
 
 ```text
-Please install the Mini Code skill for me.
-
-1. Find the newest release of Mini Code with the shell:
-   git ls-remote --tags --refs https://github.com/canotir/mini-code-editor
-   Use the highest tag of the form vMAJOR.MINOR.PATCH. Tell me which tag you use.
-2. Download this release:
-   git clone --depth 1 --branch <tag> https://github.com/canotir/mini-code-editor
-   If you cannot run shell commands or reach GitHub, tell me and stop.
-3. Read skills/mini-code/SKILL.md completely. Do not change it.
-4. Propose it to me as a new skill with the name "mini-code", so that I can save it.
-5. Tell me the commands of the skill.
+/jelk install mini-code
 ```
 
-Then type `/mini-code new` to create your first Mini Code artifact.
+jelk shows the parts of the package and asks for your approval for each part. Then type `/mini-code new` to create your first Mini Code artifact.
+
+To update all parts later, type `/jelk update mini-code`. Use only jelk for updates.
 
 ### Command reference
 
 | Command | Action |
 |---|---|
-| `/mini-code new` | Create a new Mini Code artifact. Claude asks for its name, installs the newest release and gives you the link. Each artifact has its own files and comments. |
-| `/mini-code update` | Find your Mini Code artifacts and show the ones with an older version. You select the artifacts to update, or all. Each artifact keeps its link, name, files and comments. |
+| `/mini-code new` | Create a new Mini Code artifact. Claude asks for its name, publishes the page of the installed version and gives you the link. Each artifact has its own files and comments. |
 | `/mini-code open` | Select one Mini Code artifact and continue to work with it in this chat. Claude reads the project rules and shows the open comments and the newest changeset. |
-| `/mini-code list` | Show all your Mini Code artifacts with name, version and "update available". Changes nothing. |
-| `/mini-code update-skill` | Update the skill to the version of the newest release. |
+| `/mini-code list` | Show all your Mini Code artifacts with name, version and "older than this skill". Changes nothing. |
 | `/mini-code` | Ask which of the commands above you want. |
+| `/jelk update mini-code` | Update the skill and your Mini Code artifacts to a newer release. Each artifact keeps its link, name, files and comments. |
 
-Each command first finds the newest release and asks you to confirm it. If that release has a newer skill, Claude offers to update the skill first. A skill update always shows a card that you save with one click. The skill never changes without your approval.
+The commands `/mini-code update` and `/mini-code update-skill` of version 0.6.0 are removed. They now tell you to use jelk.
 
 For details and limits, refer to [docs/skill.md](docs/skill.md). For chats without skills, use the prompts in [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
 
@@ -152,6 +146,7 @@ Notes:
 - Browser-only mode keeps the files in the local storage of one browser. The limit is approximately 5 MB. Other devices cannot see the files. Make backups.
 - Mini Code has no terminal and no Git integration.
 - The page cannot start downloads in the claude.ai artifact frame. Use the **Copy** button.
+- If a newer version of Mini Code changed the data of a project, an older page can only read that project. Update the page with `/jelk update mini-code`.
 
 ## Tests
 

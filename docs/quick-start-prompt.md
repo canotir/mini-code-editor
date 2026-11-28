@@ -2,7 +2,9 @@
 
 > This content was generated with AI support (Claude, Anthropic) and subsequently checked and, where necessary, revised by a human. Examine it before use.
 
-Use these prompts to set up Mini Code as a claude.ai artifact in a chat without skills. If the chat can use skills, install the skill `mini-code` instead. Refer to the section "Quick start with Claude" in the README and to [skill.md](skill.md).
+Use these prompts to set up Mini Code as a claude.ai artifact in a chat without skills. If the chat can use skills, install the package with `/jelk install mini-code` instead. Refer to the section "Quick start with Claude" in the README and to [skill.md](skill.md).
+
+If jelk manages your Mini Code artifacts, update them only with `/jelk update mini-code`. Do not use prompt 3 for them: an update without jelk removes the jelk version label, and jelk then treats the artifact as "locally modified".
 
 Copy a prompt and paste it into a new chat with Claude.
 

@@ -5,7 +5,7 @@ All dates are in ISO 8601 (UTC).
 ## Unreleased
 
 ### Added
-- `jelk.json`: manifest for the jelk package manager. Mini Code is the first test package. The manifest refers to the current paths, so the old prompts and the `/mini-code` skill continue to work.
+- `jelk.json`: manifest for the jelk package manager, with the parts page and skill. The manifest refers to the current paths, so the old prompts continue to work.
 - Meta tag `jelk-package` in `index.html` and the line `Jelk-package:` in `skills/mini-code/SKILL.md`.
 - Data model version in the record `meta/schema`. The page writes `version: 1` if the record is missing. If the data has a newer data model, the page becomes read-only and the status bar shows "Project (read only: newer data model)". If the version cannot be read, the page also becomes read-only ("unknown data model") until it can read version 1 again.
 - One write guard for all database writes of the page. It also stops operations that started before the page became read-only, and it blocks writes until the page has read the data model version.
@@ -15,15 +15,22 @@ All dates are in ISO 8601 (UTC).
 - `docs/claude-integration.md`: Claude checks `meta/schema` before it writes data (section 2.3).
 - `CLAUDE.md`: the branch model with `main` and `dev`, the new version locations and the rule for data model changes.
 - The prompts in `docs/quick-start-prompt.md` select the branch `dev`.
-- `/mini-code update` and the update prompt also read `docs/data-notes.md`.
+- The skill `mini-code` is a part of the jelk package. jelk installs and updates the page and the skill. The skill keeps `new`, `open` and `list`.
+- `/mini-code new` publishes the page of the skill's own version (the line `Jelk-package`), not the newest release. It sets the version label `jelk:mini-code@X.Y.Z`, so that jelk can update the artifact.
+- `/mini-code list` does not need GitHub. Its column "update available" is now "older than this skill".
+- README and `docs/skill.md`: the quick start installs the package with `/jelk install mini-code`. `docs/quick-start-prompt.md`: do not use the update prompt for artifacts that jelk manages.
+- The update prompt reads `docs/data-notes.md`.
+
+### Removed
+- `/mini-code update` and `/mini-code update-skill`. Use `/jelk update mini-code`. The commands remain and tell the user to use jelk.
 
 ### Fixed
 - A re-render of the Explorer, for example after a change by Claude, no longer creates the file whose name the person is typing. The typed name and the caret stay in the input. If the file of an open rename is deleted, the rename ends.
 
-### Not done yet
-- The confirmation "the new version works" in the page. It is necessary only for the first migration to data model 2.
-- The transition skill `/mini-code` that points to `/jelk`. jelk does not exist yet.
-- Users with the skill `mini-code` 0.6.0 have no `Jelk-package` line. They must update the skill before jelk can update it.
+### Known limits
+- The page has no confirmation "the new version works". It is necessary only for the first migration to data model 2.
+- The page database has no "create only" write. If an older page and a newer page open a project without `meta/schema` at the same time, the older page can overwrite the record. A newer page writes its version again (rule 7 in `docs/data-notes.md`).
+- The skill `mini-code` 0.6.0 has no `Jelk-package` line. Install the package with jelk one time. Artifacts that were made or updated without jelk have no jelk version label, so the first `/jelk update` asks about them.
 
 ## 0.6.0 – 2026-11-26
 

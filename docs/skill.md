@@ -2,17 +2,22 @@
 
 > This content was generated with AI support (Claude, Anthropic) and subsequently checked and, where necessary, revised by a human. Examine it before use.
 
-The skill `mini-code` creates, updates, opens and lists Mini Code artifacts in claude.ai. The skill file is [`skills/mini-code/SKILL.md`](../skills/mini-code/SKILL.md).
+The skill `mini-code` creates, opens and lists Mini Code artifacts in claude.ai. The skill file is [`skills/mini-code/SKILL.md`](../skills/mini-code/SKILL.md).
+
+The skill is a part of the jelk package `mini-code`, together with the page. jelk installs and updates both parts. The skill never updates an artifact or itself.
 
 ## Requirements
 
-- A chat with a shell that can reach GitHub, and artifact tools (list, read, publish, declare capabilities).
+- The commands `new` and `open` need a chat with a shell that can reach GitHub. All commands need the artifact tools (list, read, publish, declare capabilities).
 - A web fetch is not sufficient. It returns a summary, not the exact file.
-- To install or update the skill, the chat must be able to propose a skill (a review card). Without this, Claude gives you the file, and you upload it in the settings.
 
-## Installation
+## Installation and updates
 
-Use the prompt in the section "Quick start with Claude" of the [README](../README.md#quick-start-with-claude). Claude finds the newest release, reads the skill file and shows it on a card. Select **Save** on the card.
+- Install: `/jelk install mini-code`. jelk shows each part of the package (the page and the skill) and asks for your approval.
+- Update: `/jelk update mini-code`. jelk updates the skill and the selected Mini Code artifacts. Use only jelk for updates.
+- The skill file contains the line `Jelk-package: mini-code@X.Y.Z`. jelk uses it to find the installed version of the skill.
+
+If you have the skill 0.6.0: it has no `Jelk-package` line. Install the package with jelk one time. jelk then replaces the skill.
 
 ## Command reference
 
@@ -21,55 +26,39 @@ Use the prompt in the section "Quick start with Claude" of the [README](../READM
 Creates a new Mini Code artifact.
 
 1. Claude asks for the name of the artifact, for example "Mini Code – Weather station".
-2. Claude finds the newest release and asks you to confirm it.
-3. Claude publishes `index.html` of the release without changes, with your name as the title.
+2. Claude gets the release of the installed skill version (the version in the line `Jelk-package`). It does not use a newer release. Only jelk changes the version.
+3. Claude publishes `index.html` of that release without changes, with your name as the title and the version label `jelk:mini-code@X.Y.Z`. With this label, jelk can update the artifact later.
 4. Claude declares the database and the user capability.
 5. You get the name, the version and the link.
 
 Each artifact has its own project database. Use one artifact for each project.
-
-### `/mini-code update`
-
-Updates selected Mini Code artifacts to a release.
-
-1. Claude finds the newest release and asks you to confirm it.
-2. Claude finds all your Mini Code artifacts (refer to "Detection").
-3. Claude offers only the artifacts with an older version. You select them in a list, or you select "All". With more than 3 artifacts, you type the numbers, for example `1, 3, 4`.
-4. Claude reads the changelog. If the data model or the capabilities changed, Claude tells you and waits for your approval.
-5. Claude publishes the release to each selected artifact. The link, the name, the files and the comments stay. Claude tells you about shared artifacts before it publishes them.
-6. You get a table: name, old version, new version, result.
 
 ### `/mini-code open`
 
 Continues the work with one Mini Code artifact in the current chat.
 
 1. You select the artifact.
-2. If the artifact has an older version, Claude offers `/mini-code update`.
+2. If the artifact has an older version than the skill, Claude tells you that `/jelk update mini-code` can update it.
 3. Claude reads the procedures of the artifact's version, the project rules (`CLAUDE.md` and the path rules) and the focus files.
 4. Claude shows the open comments, sorted by priority, and the newest changeset.
 
 ### `/mini-code list`
 
-Shows all your Mini Code artifacts with number, name, version, last change, link and "update available". This command changes nothing.
+Shows all your Mini Code artifacts with number, name, version, last change, link and "older than this skill". This command changes nothing and does not need GitHub.
 
-### `/mini-code update-skill`
+### `/mini-code update` and `/mini-code update-skill`
 
-Updates the skill.
-
-1. Claude finds the newest release and reads its skill file.
-2. If its skill version is newer, Claude shows the old and the new version and the changelog.
-3. Claude shows the new skill on a card. Select **Save** to update.
+Removed in version 0.7.0. Claude tells you to use `/jelk update mini-code`.
 
 ### `/mini-code`
 
 Without a subcommand, Claude asks which command you want.
 
-## Version check and self-update
+## Versions
 
-- Each command first finds the newest release tag (`vMAJOR.MINOR.PATCH`) on GitHub and asks you to confirm it. You can also name an older release. The skill never uses a branch.
-- The skill file contains the line `Skill version: X.Y.Z`. Each command compares it with the skill file of the release.
-- If the release has a newer skill, Claude tells you before it continues. Select "Update the skill now" to get the card, or "Not now" to continue with the installed skill.
-- The skill cannot change itself without your approval. Each update needs your click on the card.
+- The skill uses only the release tag of its own version (`vX.Y.Z`). It never uses a branch or a newer tag.
+- If the tag does not exist, for example for a development version with the suffix `-dev`, the commands `new` and `open` stop.
+- The skill checks that the page of the release has the tag `<meta name="jelk-package" content="mini-code@X.Y.Z">` with the same version.
 
 ## Detection
 
@@ -82,7 +71,8 @@ Claude lists your own artifacts. It skips artifacts that are made from a type (D
 
 ## Limits
 
-- The selection dialog has at most 4 options in each question. With more than 3 artifacts, you type the numbers.
-- Detection finds only artifacts that you own. Artifacts that others shared with you are not updated.
+- The selection dialog has at most 4 options in each question. With more than 3 artifacts, you type the number.
+- Detection finds only artifacts that you own.
 - Detection reads each of your artifacts. With many artifacts, this takes some time.
 - The skill does not change the data in the project databases.
+- Artifacts that were made or updated without jelk have no jelk version label. The first `/jelk update` asks you about them.
