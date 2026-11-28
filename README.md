@@ -75,7 +75,7 @@ All screenshots show sample content. They were made automatically with a headles
 
 ## Quick start with Claude
 
-Mini Code is a package for the jelk package manager. jelk installs and updates the page and the Claude skill `mini-code` together. Type this in a chat with Claude that has the skill `jelk` (if you do not have it, install jelk first as its documentation tells you):
+Mini Code is a package for the jelk package manager. jelk installs and updates the page and the Claude skill `mini-code` together. Type this in a chat with Claude that has the skill `jelk` (if you do not have it, install jelk first: refer to [github.com/canotir/jelk](https://github.com/canotir/jelk)):
 
 ```text
 /jelk install mini-code
