@@ -29,7 +29,7 @@ All dates are in ISO 8601 (UTC).
 ### Known limits
 - The page has no confirmation "the new version works". It is necessary only for the first migration to data model 2.
 - The page database has no "create only" write. If an older page and a newer page open a project without `meta/schema` at the same time, the older page can overwrite the record. A newer page writes its version again (rule 7 in `docs/data-notes.md`).
-- If you have the skill 0.6.0: it has no `Jelk-package` line. Update it one time with its own command `/mini-code update-skill`. The new skill has the line, and jelk can then update it. Alternative: run `/jelk install mini-code`. jelk warns about the skill without the line: select "Replace". Artifacts that were made or updated without jelk have no jelk version label, so the first `/jelk update` asks about them.
+- If you have the skill 0.6.0: it has no `Jelk-package` line. Update it one time with its own command `/mini-code update-skill`. The new skill has the line, and jelk can then update it. Alternative: run `/jelk install mini-code`. jelk warns about the skill without the line: select "Replace". Artifacts that were made or updated without jelk have no jelk version label, so jelk asks about them during the first update.
 
 ## 0.6.0 – 2026-11-26
 

@@ -77,7 +77,7 @@ Use a question with selectable options if the chat has one. These questions have
 3. Read `index.html` and `docs/claude-integration.md` in the clone completely before you publish anything.
 4. Publish `index.html` without changes as a new artifact:
    - Use the name from step 1 as the title.
-   - Give the publish tool the version label (parameter `label`) `jelk:mini-code@X.Y.Z` (the version from 2.1). jelk uses this label to find its artifacts. Without it, `/jelk update` treats the artifact as "locally modified" and asks about it. If the tool has no label parameter, publish anyway and tell the user that `/jelk update` will ask about this artifact.
+   - Give the publish tool the version label (parameter `label`) `jelk:mini-code@X.Y.Z` (the version from 2.1). jelk uses this label to find its artifacts. Without it, jelk treats the artifact as "locally modified" and asks about it during an update. If the tool has no label parameter, publish anyway and tell the user that jelk will ask about this artifact during an update.
 5. Declare these capabilities for the artifact:
    `{"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}}`
 6. Read the first 15 lines of the published page and the declaration. Check the version in the meta tag and the capabilities.

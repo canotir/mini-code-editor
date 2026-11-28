@@ -14,7 +14,6 @@
       "claudeDocs": ["docs/claude-integration.md"],
       "dataNotes": "docs/data-notes.md"
     },
-    "skill": {"name": "mini-code", "path": "skills/mini-code/SKILL.md"},
-    "automations": []
+    "skill": {"name": "mini-code", "path": "skills/mini-code/SKILL.md"}
   }
 }
