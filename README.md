@@ -75,13 +75,15 @@ All screenshots show sample content. They were made automatically with a headles
 
 ## Quick start with Claude
 
-Mini Code is a package for the jelk package manager. jelk installs and updates the page and the Claude skill `mini-code` together. Type this in a chat with Claude that has the skill `jelk`:
+Mini Code is a package for the jelk package manager. jelk installs and updates the page and the Claude skill `mini-code` together. Type this in a chat with Claude that has the skill `jelk` (if you do not have it, install jelk first as its documentation tells you):
 
 ```text
 /jelk install mini-code
 ```
 
-jelk shows the parts of the package and asks for your approval for each part. Then type `/mini-code new` to create your first Mini Code artifact.
+jelk shows the parts of the package and asks for your approval for each part. If you approve the page, jelk creates your first Mini Code artifact. To create more artifacts later, type `/mini-code new`.
+
+Without jelk, use the prompts in [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
 
 To update all parts later, type `/jelk update mini-code`. Use only jelk for updates.
 
@@ -91,7 +93,7 @@ To update all parts later, type `/jelk update mini-code`. Use only jelk for upda
 |---|---|
 | `/mini-code new` | Create a new Mini Code artifact. Claude asks for its name, publishes the page of the installed version and gives you the link. Each artifact has its own files and comments. |
 | `/mini-code open` | Select one Mini Code artifact and continue to work with it in this chat. Claude reads the project rules and shows the open comments and the newest changeset. |
-| `/mini-code list` | Show all your Mini Code artifacts with name, version and "older than this skill". Changes nothing. |
+| `/mini-code list` | Show all your Mini Code artifacts with name, version and the comparison with the skill (older, same or newer). Changes nothing. |
 | `/mini-code` | Ask which of the commands above you want. |
 | `/jelk update mini-code` | Update the skill and your Mini Code artifacts to a newer release. Each artifact keeps its link, name, files and comments. |
 

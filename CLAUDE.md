@@ -46,9 +46,9 @@ The version number is in these locations. Change all of them for each release.
 | `skills/mini-code/SKILL.md` | Line `Jelk-package: mini-code@…` | `Jelk-package: mini-code@0.7.0` |
 | `CHANGELOG.md` | New heading at the top | `## 0.4.2 – 2026-11-25` |
 
-The README has no version number: its prompt installs the skill, and the skill finds the newest release tag.
+The README has no version number: jelk installs the newest release.
 
-On the branch `dev`, the meta tags, `jelk.json` and the `Jelk-package` line have the suffix `-dev` (for example `0.7.0-dev`). The line `Skill version` keeps the version of the last release, without a suffix: the skill compares only `X.Y.Z` release versions. Change it only for a release. The prompts in `docs/quick-start-prompt.md` then select the branch: `checkout dev`, and the update prompt starts with "…to the development version (branch dev):". For a release from `dev`, set the meta tags, `jelk.json`, the `Jelk-package` line and the skill version to the release version and set the prompts to the tag (`checkout v0.6.0`, "…to version v0.6.0:") before you merge into `main`. The skill uses only release tags, so it never installs the branch `dev`.
+On the branch `dev`, the meta tags, `jelk.json` and the `Jelk-package` line have the suffix `-dev` (for example `0.7.0-dev`). The line `Skill version` keeps the version of the last release, without a suffix. Change it for each release: the skill 0.6.0 compares it (only `X.Y.Z` release versions) to offer its own update. The prompts in `docs/quick-start-prompt.md` then select the branch: `checkout dev`, and the update prompt starts with "…to the development version (branch dev):". For a release from `dev`, set the meta tags, `jelk.json`, the `Jelk-package` line and the skill version to the release version and set the prompts to the tag (`checkout v0.6.0`, "…to version v0.6.0:") before you merge into `main`. The skill uses only release tags, so it never installs the branch `dev`.
 
 Do not change the text "older than 0.4.2" in the update prompt. Version 0.4.2 is the first version with the meta tag `mini-code-version`.
 
@@ -58,7 +58,7 @@ Procedure:
 
 1. Change the version in all locations in the table.
 2. Make sure that the commands in `skills/mini-code/SKILL.md`, the command reference in `README.md` and `docs/skill.md` agree.
-3. To find old version numbers, run `grep -rn "v0\.4\.1\|0\.4\.1" README.md docs skills index.html jelk.json` (use the old version). Do not change the version numbers in the history table of `docs/data-notes.md`, in `CHANGELOG.md` or in the text "older than 0.6.0" in `skills/mini-code/SKILL.md`.
+3. To find old version numbers, run `grep -rn "v0\.4\.1\|0\.4\.1" README.md docs skills index.html jelk.json` (use the old version). Do not change the version numbers in the history table of `docs/data-notes.md` or in `CHANGELOG.md`.
 4. Commit. Get approval, then push.
 5. The owner creates the release and the tag on GitHub, with the target `main`. The tag must point to the commit that contains the new version numbers. The git proxy of Claude sessions blocks tag pushes.
 

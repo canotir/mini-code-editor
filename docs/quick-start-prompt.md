@@ -75,8 +75,4 @@ Please update my Mini Code artifact to the development version (branch dev): <li
 
 The `checkout` line selects one version. On the branch `dev`, it selects the development version, which can contain errors. On the branch `main`, it selects one released version. Without it, `git clone` gets the newest version, which can contain changes that nobody examined.
 
-Only the owner of the repository can create or move a tag. When you release a new version, do these steps:
-
-1. Change the tag in all prompts to the new version, for example `v0.4.3`. Also change `content` in the tag `<meta name="mini-code-version">` in `index.html`.
-2. Commit the change.
-3. Create the release with this tag on the new commit.
+Only the owner of the repository can create or move a tag. For a new release, follow the release procedure in `CLAUDE.md`.
