@@ -100,7 +100,7 @@ Use a question with selectable options if the chat has one. These questions have
 2. Do 2.3. Show the table.
 3. Offer only the artifacts with a version that is older than the selected release. If no artifact is older, tell the user and stop.
 4. Do 2.4.
-5. Read `CHANGELOG.md` for all versions that are newer than the oldest selected artifact. Read `docs/claude-integration.md`.
+5. Read `CHANGELOG.md` for all versions that are newer than the oldest selected artifact. Read `docs/claude-integration.md`, and `docs/data-notes.md` if it exists.
 6. If the data model or the capabilities changed, tell the user what changed and wait for approval. Ask one time for all selected artifacts.
 7. Read `index.html` in the clone completely.
 8. For each selected artifact:

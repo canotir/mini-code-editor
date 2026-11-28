@@ -59,7 +59,8 @@ Please update my Mini Code artifact to the development version (branch dev): <li
    git clone https://github.com/canotir/mini-code-editor
    git -C mini-code-editor checkout dev
    If you cannot run shell commands or reach GitHub, tell me and stop.
-3. Read CHANGELOG.md for all versions newer than mine, and docs/claude-integration.md.
+3. Read CHANGELOG.md for all versions newer than mine, docs/claude-integration.md,
+   and docs/data-notes.md if it exists.
    If the data model or the capabilities changed, tell me and wait for my approval.
 4. Read index.html completely. In a copy, set the text of the <title> element to the
    name of my artifact. Change nothing else. Publish the copy to my existing artifact

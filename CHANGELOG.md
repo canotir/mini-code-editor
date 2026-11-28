@@ -7,13 +7,23 @@ All dates are in ISO 8601 (UTC).
 ### Added
 - `jelk.json`: manifest for the jelk package manager. Mini Code is the first test package. The manifest refers to the current paths, so the old prompts and the `/mini-code` skill continue to work.
 - Meta tag `jelk-package` in `index.html` and the line `Jelk-package:` in `skills/mini-code/SKILL.md`.
-- Data model version in the record `meta/schema`. The page writes `version: 1` if the record is missing. If the data has a newer data model, the page becomes read-only and the status bar shows "Project (read only: newer data model)".
+- Data model version in the record `meta/schema`. The page writes `version: 1` if the record is missing. If the data has a newer data model, the page becomes read-only and the status bar shows "Project (read only: newer data model)". If the version cannot be read, the page also becomes read-only ("unknown data model").
+- One write guard for all database writes of the page. It also stops operations that started before the page became read-only, and it blocks writes until the page has read the data model version.
 - `docs/data-notes.md`: the data model version, the data changes of each version and the rules for migrations.
 
 ### Changed
 - `docs/claude-integration.md`: Claude checks `meta/schema` before it writes data (section 2.3).
 - `CLAUDE.md`: the branch model with `main` and `dev`, the new version locations and the rule for data model changes.
 - The prompts in `docs/quick-start-prompt.md` select the branch `dev`.
+- `/mini-code update` and the update prompt also read `docs/data-notes.md`.
+
+### Fixed
+- A re-render of the Explorer, for example after a change by Claude, no longer creates the file whose name the person is typing. The typed name stays in the input.
+
+### Not done yet
+- The confirmation "the new version works" in the page. It is necessary only for the first migration to data model 2.
+- The transition skill `/mini-code` that points to `/jelk`. jelk does not exist yet.
+- Users with the skill `mini-code` 0.6.0 have no `Jelk-package` line. They must update the skill before jelk can update it.
 
 ## 0.6.0 – 2026-11-26
 

@@ -721,6 +721,8 @@ function reportErr(e){
     : c === 'quota_exceeded' ? 'The project database is full: ' + (e.message || '') + ' Delete some files and try again.'
     : c === 'revoked' ? 'Access to the project ended. Reload the page.'
     : c === 'exists' ? 'A file with that name already exists.'
+    : c === 'read_only' ? 'This page can only read the project data. Update the page to a newer version of Mini Code.'
+    : c === 'not_ready' ? 'Still connecting to the project. Try again in a moment.'
     : c === 'too_large' ? 'The file is too large for the project (limit about 200,000 characters).'
     : 'Could not save the change' + (c ? ' (' + c + ')' : '') + '. Try again.';
   toast(msg, 'err');
@@ -827,10 +829,21 @@ let rules = { readonly:[], focus:[], pinned:[] }, newDirs = new Set();
 const histId = (p, rev) => docId(p) + '@' + rev;
 const own = (o, k) => typeof k === 'string' && Object.hasOwn(o, k);
 const nowIso = () => new Date().toISOString();
-// Data model version in meta/schema (docs/data-notes.md). Version 1 = the data model of Mini Code 0.5.0 to 0.7.0.
+// Data model version in meta/schema (docs/data-notes.md). Version 1 = the data model of all Mini Code versions up to 0.7.0.
 // Increase it only with a migration that adds records or fields and keeps the old ones (no deletes).
 const DATA_SCHEMA = 1;
-const schema = { stored:null, newer:false, writing:false };
+// block: null = writes allowed, 'newer' = the data has a newer data model, 'unknown' = the version cannot be read.
+const schema = { known:false, block:null, writing:false };
+// Every database write of the page goes through this wrapper, also writes of operations that started earlier.
+// It refuses writes until the page knows the data model version, and after the page found a reason to block.
+function guardDb(db){
+  const check = () => { if (schema.block) throw { code:'read_only' }; if (!schema.known) throw { code:'not_ready' }; };
+  const ref = r => ({ id:r.id, path:r.path, get:(...a) => r.get(...a), onSnapshot:(...a) => r.onSnapshot(...a),
+    set:async (...a) => { check(); return r.set(...a); }, update:async (...a) => { check(); return r.update(...a); }, delete:async (...a) => { check(); return r.delete(...a); } });
+  const query = q => ({ id:q.id, path:q.path, get:(...a) => q.get(...a), onSnapshot:(...a) => q.onSnapshot(...a),
+    where:(...a) => query(q.where(...a)), orderBy:(...a) => query(q.orderBy(...a)), limit:(...a) => query(q.limit(...a)), doc:(...a) => ref(q.doc(...a)) });
+  return { doc:p => ref(db.doc(p)), collection:p => query(db.collection(p)) };
+}
 let historyWarned = false;
 function warnHistory(){ if (!historyWarned) { historyWarned = true; toast('The old revision could not be kept in the file history. The save itself worked.', 'err'); } }
 
@@ -916,7 +929,8 @@ async function writeSeen(){
   const ids = new Set(Object.keys(meta).map(docId));
   for (const k of Object.keys(seen.revs)) if (!ids.has(k)) delete seen.revs[k];   // keep the record small
   const local = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen.revs)); } catch (e) {} };
-  if (!me.uid || seen.local || schema.newer) { local(); return; }   // newer data model: write nothing to the database
+  if (!me.uid || seen.local || schema.block) { local(); return; }   // blocked data model: write nothing to the database
+  if (store.mode === 'db' && !schema.known) { scheduleSeenWrite(); return; }
   if (seen.writing) { seen.again = true; return; }
   seen.writing = true;
   try {
@@ -1159,7 +1173,7 @@ async function start(){
   while (!(window.claude && typeof window.claude.use === 'function') && Date.now() - t0 < CONNECT_WAIT_MS) await sleep(100);
   if (window.claude && typeof window.claude.use === 'function') { try { db = await window.claude.use('db'); } catch (e) { db = null; } }
   if (!db) { startLocal(); return; }
-  store.db = db; store.mode = 'db';
+  store.rawDb = db; store.db = guardDb(db); store.mode = 'db';
   try {
     const user = await window.claude.use('user');
     if (user && typeof user.can === 'function') { const c = await user.can('data.write'); if (c === false) store.canWrite = false; }
@@ -1194,6 +1208,7 @@ function finishStart(){
   if (active) setActive(active); else persist();
 }
 function subscribe(){
+  watchSchema();   // first, so that the page knows the data model version as early as possible
   let first = true;
   const timer = setTimeout(() => { if (first) { treeNote = 'The project data cannot be reached yet. Check the connection; the page keeps trying.'; renderTree(); } }, LOAD_TIMEOUT_MS);
   store.db.collection('files').onSnapshot(snap => {
@@ -1207,7 +1222,6 @@ function subscribe(){
     recomputeDirs(); renderTree();
   }, () => {});
   store.db.doc('meta/paths').onSnapshot(s => { rules = cleanRules(s.exists ? (s.data() || {}) : {}); renderTree(); }, () => {});
-  watchSchema();
   store.db.collection('changesets').orderBy('at', 'desc').limit(MAX_CHANGESETS).onSnapshot(snap => {
     actv.list = snap.docs.map(d => ({ id:d.id, ...(d.data() || {}) })).filter(c => typeof c.at === 'string' && typeof c.summary === 'string');
     renderActivity(); if (!welcome.hidden) renderWelcome();
@@ -1221,23 +1235,44 @@ function subscribe(){
 }
 // A newer page can store data that this page does not know. Writes from this page could then make that data
 // inconsistent, so the page becomes read-only. A missing record means version 1: the page writes it once.
-// The page never changes or deletes an existing record.
+// The page never changes or deletes an existing record. It fails closed: an unreadable record or a listener
+// error makes the page read-only. Uses the raw database, because guardDb() refuses writes until this is known.
+const parseSchema = x => Number.isInteger(x) && x > 0 ? x : typeof x === 'string' && /^[1-9][0-9]{0,5}$/.test(x) ? +x : null;
+function blockWrites(kind, msg){
+  if (schema.block) return;
+  schema.block = kind; schema.known = true; store.canWrite = false;
+  pending = null; closeComposer(); cm.replying = cm.editing = null;   // close open inputs before the re-render
+  for (const p in tas) tas[p].readOnly = true;
+  toast(msg, 'err');
+  render(); renderComments(); renderStatus();
+}
+function onSchema(exists, d){
+  if (exists) {
+    const v = parseSchema((d || {}).version);
+    if (v === null) { blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data.'); return; }
+    if (v > DATA_SCHEMA) { blockWrites('newer', `A newer version of Mini Code changed the project data (data model ${v}). This page can only read it. Update the page.`); return; }
+  } else if (store.canWrite && !schema.writing) {
+    schema.writing = true;
+    const ref = store.rawDb.doc('meta/schema');
+    withRetry(async () => { if (!(await ref.get()).exists) await ref.set({ version:DATA_SCHEMA, app:APP_VERSION, at:nowIso() }); })
+      .catch(() => {}).finally(() => { schema.writing = false; });
+  }
+  if (!schema.known && !schema.block) {
+    schema.known = true;
+    if (store.canWrite) for (const p in tas) tas[p].readOnly = false;
+    renderStatus();
+  }
+}
 function watchSchema(){
-  const ref = store.db.doc('meta/schema');
+  const ref = store.rawDb.doc('meta/schema');
   ref.onSnapshot(s => {
-    const d = s.exists ? (s.data() || {}) : null;
-    const v = d && Number.isInteger(d.version) && d.version > 0 ? d.version : null;
-    schema.stored = v;
-    if (v !== null && v > DATA_SCHEMA && !schema.newer) {
-      schema.newer = true; store.canWrite = false;
-      for (const p in tas) tas[p].readOnly = true;
-      toast(`A newer version of Mini Code changed the project data (data model ${v}). This page can only read it. Update the page.`, 'err');
-      render(); renderComments();
-    } else if (!s.exists && !(s.metadata && s.metadata.fromCache) && store.canWrite && !schema.writing) {
-      schema.writing = true;
-      withRetry(async () => { if (!(await ref.get()).exists) await ref.set({ version:DATA_SCHEMA, app:APP_VERSION, at:nowIso() }); }).catch(() => {});
+    if (!s.exists && s.metadata && s.metadata.fromCache) {   // a cached "missing" can be stale: ask the server
+      ref.get().then(g => onSchema(g.exists, g.exists ? g.data() : null))
+        .catch(() => blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data. Reload the page.'));
+      return;
     }
-  }, () => {});
+    onSchema(s.exists, s.exists ? s.data() : null);
+  }, () => blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data. Reload the page.'));
 }
 function applyFiles(snap){
   if (store.hold) { store.heldSnap = snap; return; }
@@ -1273,14 +1308,15 @@ function replaceBuffer(p, text){
 function guardWrite(){
   if (store.mode === 'connecting') { toast('Still connecting to the project…'); return false; }
   if (store.mode === 'offline') { toast('The connection to the project was lost. Reload the page.', 'err'); return false; }
-  if (!store.canWrite) { toast('You can only read this project.', 'err'); return false; }
+  if (store.mode === 'db' && !schema.known) { toast('Still connecting to the project…'); return false; }
+  if (!store.canWrite) { toast(schema.block ? 'This page can only read the project data. Update the page to a newer version of Mini Code.' : 'You can only read this project.', 'err'); return false; }
   return true;
 }
 
 /* ---------- tabs and textareas ---------- */
 function makeTa(p, text){
   const t = document.createElement('textarea');
-  t.className = 'ta'; t.spellcheck = false; t.wrap = 'off'; t.readOnly = !store.canWrite;
+  t.className = 'ta'; t.spellcheck = false; t.wrap = 'off'; t.readOnly = !store.canWrite || (store.mode === 'db' && !schema.known);
   t.setAttribute('autocapitalize', 'off'); t.setAttribute('autocomplete', 'off'); t.setAttribute('aria-label', 'Editor: ' + p);
   t.value = text;
   t.addEventListener('input', () => onInput(t));
@@ -1401,8 +1437,11 @@ function renderTree(){
   const pins = store.mode === 'db' && !pending ? rules.pinned.filter(p => p in fs) : [];
   if (h && pins.length) h = '<div class="pinhead">Pinned</div>' + pins.map(p => rowHtml(p, 0, 'f', true)).join('') + '<div class="pinsep"></div>' + h;
   $('#btnExplorer').classList.toggle('dot', anyNew);
+  // A re-render removes the open name input. Its blur must not commit the name, and the typed text must stay.
+  const prev = tree.querySelector('input'), typed = prev ? prev.value : null;
+  if (prev) prev.dataset.gone = '1';
   tree.innerHTML = h || `<div class="empty"><p>${esc(treeNote)}</p>${store.mode === 'connecting' ? '' : emptyActions()}</div>`;
-  const inp = tree.querySelector('input'); if (inp) bindInput(inp);
+  const inp = tree.querySelector('input'); if (inp) { if (typed !== null) inp.value = typed; bindInput(inp); }
 }
 function renderEditor(){
   const has = !!(active && tas[active]);
@@ -1449,7 +1488,7 @@ function renderConflict(){
 }
 function renderStatus(){
   const t = tas[active], unsaved = tabs.filter(isDirty).length;
-  const mode = store.mode === 'db' ? (store.busy ? 'Saving…' : store.canWrite ? 'Project synced' : schema.newer ? 'Project (read only: newer data model)' : 'Project (read only)')
+  const mode = store.mode === 'db' ? (store.busy ? 'Saving…' : store.canWrite ? (schema.known ? 'Project synced' : 'Connecting…') : schema.block === 'newer' ? 'Project (read only: newer data model)' : schema.block === 'unknown' ? 'Project (read only: unknown data model)' : 'Project (read only)')
     : store.mode === 'local' ? (storageOK ? 'Browser storage only' : 'Browser storage blocked: work is not kept')
     : store.mode === 'offline' ? 'Disconnected: reload the page' : 'Connecting…';
   const oc = cm.list.filter(c => c.status !== 'resolved').length;
@@ -1955,6 +1994,7 @@ function openComposer(){
 function closeComposer(){ if (cbox.hidden) return; cbox.hidden = true; cm.draft = null; }
 async function saveComposer(){
   const d = cm.draft, inp = $('#cboxIn'); if (!d || !inp) return;
+  if (!guardWrite()) return;
   const text = inp.value.trim();
   if (!text) { inp.focus(); return; }
   if (text.length > MAX_COMMENT_CHARS) { toast('The comment is too long (limit 20,000 characters).', 'err'); return; }
@@ -2042,11 +2082,12 @@ function bindInput(inp){
   let done = false;
   const fin = ok => { if (done) return; done = true; if (ok) commitPending(inp.value); else { pending = null; renderTree(); tree.focus(); } };
   inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); fin(true); } else if (e.key === 'Escape') { e.preventDefault(); fin(false); } });
-  inp.addEventListener('blur', () => fin(true));
+  inp.addEventListener('blur', () => { if (!inp.dataset.gone) fin(true); });
 }
 function fail(msg){ toast(msg, 'err'); renderTree(); }
 async function commitPending(raw){
   const pd = pending; pending = null;
+  if (pd && !guardWrite()) { renderTree(); return; }
   const v = raw.trim().replace(/^\/+|\/+$/g, '');
   if (!pd || !v) { renderTree(); return; }
   if (pd.mode === 'rename') {
@@ -2567,6 +2608,7 @@ tree.addEventListener('drop', e => {
   const np = join(dir, base(src));
   if (np in fs || dirs.has(np)) { toast(`"${base(src)}" already exists in ${dir || 'the top level'}.`, 'err'); return; }
   if (!idOK(np)) { toast('The new path would be too long.', 'err'); return; }
+  if (!guardWrite()) return;
   moveStore(src, np).then(() => { if (dir) expandTo(dir); selPath = np; renderTree(); toast(`Moved "${base(src)}" to ${dir || 'the top level'}`); });
 });
 tree.addEventListener('dragend', endTreeDrag);
