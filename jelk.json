@@ -1,7 +1,7 @@
 {
   "jelk": 1,
   "name": "mini-code",
-  "version": "0.7.0-dev",
+  "version": "0.7.0",
   "description": "A single-file code editor that you and Claude share.",
   "license": "MIT",
   "homepage": "https://github.com/canotir/mini-code-editor",

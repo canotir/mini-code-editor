@@ -2,7 +2,7 @@
 
 All dates are in ISO 8601 (UTC).
 
-## Unreleased
+## 0.7.0 – 2026-11-28
 
 ### Added
 - `jelk.json`: manifest for the jelk package manager, with the parts page and skill. The manifest refers to the current paths, so the old prompts continue to work, and the skill 0.6.0 can still update itself to this version.
@@ -14,7 +14,6 @@ All dates are in ISO 8601 (UTC).
 ### Changed
 - `docs/claude-integration.md`: Claude checks `meta/schema` before it writes data (section 2.3).
 - `CLAUDE.md`: the branch model with `main` and `dev`, the new version locations and the rule for data model changes.
-- The prompts in `docs/quick-start-prompt.md` select the branch `dev`.
 - The skill `mini-code` is a part of the jelk package. jelk installs and updates the page and the skill. The skill keeps `new`, `open` and `list`.
 - `/mini-code new` publishes the page of the skill's own version (the line `Jelk-package`), not the newest release. It sets the version label `jelk:mini-code@X.Y.Z`, so that jelk can update the artifact.
 - `/mini-code list` does not need GitHub. Its column "update available" now compares each artifact with the skill (older, same or newer).
