@@ -7,7 +7,7 @@ All dates are in ISO 8601 (UTC).
 ### Added
 - `jelk.json`: manifest for the jelk package manager. Mini Code is the first test package. The manifest refers to the current paths, so the old prompts and the `/mini-code` skill continue to work.
 - Meta tag `jelk-package` in `index.html` and the line `Jelk-package:` in `skills/mini-code/SKILL.md`.
-- Data model version in the record `meta/schema`. The page writes `version: 1` if the record is missing. If the data has a newer data model, the page becomes read-only and the status bar shows "Project (read only: newer data model)". If the version cannot be read, the page also becomes read-only ("unknown data model").
+- Data model version in the record `meta/schema`. The page writes `version: 1` if the record is missing. If the data has a newer data model, the page becomes read-only and the status bar shows "Project (read only: newer data model)". If the version cannot be read, the page also becomes read-only ("unknown data model") until it can read version 1 again.
 - One write guard for all database writes of the page. It also stops operations that started before the page became read-only, and it blocks writes until the page has read the data model version.
 - `docs/data-notes.md`: the data model version, the data changes of each version and the rules for migrations.
 
@@ -18,7 +18,7 @@ All dates are in ISO 8601 (UTC).
 - `/mini-code update` and the update prompt also read `docs/data-notes.md`.
 
 ### Fixed
-- A re-render of the Explorer, for example after a change by Claude, no longer creates the file whose name the person is typing. The typed name stays in the input.
+- A re-render of the Explorer, for example after a change by Claude, no longer creates the file whose name the person is typing. The typed name and the caret stay in the input. If the file of an open rename is deleted, the rename ends.
 
 ### Not done yet
 - The confirmation "the new version works" in the page. It is necessary only for the first migration to data model 2.

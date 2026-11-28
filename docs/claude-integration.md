@@ -63,7 +63,7 @@ The ID must not be longer than 188 bytes. The history ID adds `@` and the revisi
 This document describes data model version 1. `docs/data-notes.md` lists the changes of each version.
 
 1. Read `meta/schema` before you write data. If the record is missing, the version is 1.
-2. If `version` is higher than 1, do not write data. Tell the user that the data has a newer data model, and read the `docs/claude-integration.md` of the newer Mini Code version first.
+2. If `version` is higher than 1, or if it is not a positive integer, do not write data. Tell the user that the data has a newer data model, and read the `docs/claude-integration.md` of the newer Mini Code version first.
 3. Do not write, change or delete `meta/schema`. The page writes it.
 
 ## 3 Rules for writing files (for Claude)

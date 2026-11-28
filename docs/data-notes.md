@@ -8,7 +8,7 @@ This file tells you how each version changes the data in the project database of
 
 The record `meta/schema` holds the data model version: `{version, app, at}`.
 
-- `version`: an integer. The data model that the data uses.
+- `version`: a positive integer. The data model that the data uses. The page also reads a string of digits, for example `"2"`.
 - `app`: the Mini Code version that wrote the record.
 - `at`: the time in ISO 8601, UTC.
 
@@ -16,11 +16,11 @@ If the record is missing, the data model is version 1.
 
 The page knows one data model version (the constant `DATA_SCHEMA` in `index.html`). When the page opens:
 
-- Until the page has read `meta/schema`, it does not write to the database. The status bar shows "Connecting…".
+- Until the page has read `meta/schema`, it does not write to the database. For a person who can write, the status bar shows "Connecting…". After 10 seconds without a result, the page shows a message and keeps trying.
 - If `meta/schema` is missing and the person can write, the page writes `{version: 1, …}` one time.
 - If `version` is higher than the version that the page knows, the page becomes read-only. The status bar shows "Project (read only: newer data model)". The page writes nothing to the database, and it keeps the change markers in the browser. Update the page to a newer Mini Code version.
-- If `version` cannot be read (not a positive integer), or the page cannot read `meta/schema`, the page also becomes read-only. The status bar shows "Project (read only: unknown data model)".
-- The read-only state also stops operations that started before it, for example an import. One write that is already in progress can still finish.
+- If `version` cannot be read, or the page cannot read `meta/schema`, the page also becomes read-only. The status bar shows "Project (read only: unknown data model)". The page keeps trying. When it reads version 1 again, writes are possible again.
+- The read-only state also stops operations that started before it, for example an import. A write that is already in progress can still finish. An operation with several steps (for example a move or a changeset) can stop after some of its steps.
 - The page never deletes `meta/schema`. It changes `version` only after a confirmed migration (rule 4 in the rules below).
 
 ## Versions

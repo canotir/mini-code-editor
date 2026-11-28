@@ -672,7 +672,7 @@ let fs = {}, meta = {}, dirs = new Set(), explicitDirs = new Set(), tabs = [], a
 let selPath = null, pending = null, sideW = 260, sideView = 'explorer', storageOK = true, warned = false;
 let persistTimer = 0, lastLines = -1, curLineIdx = 0, LH = 20, CW = 8.4, treeNote = 'Connecting to the project…';
 const tas = {}, view = {}, tabBase = {}, saving = new Set();
-const store = { mode:'connecting', db:null, canWrite:true, busy:0, hold:0, heldSnap:null, dirsChain:Promise.resolve() };
+const store = { mode:'connecting', db:null, canWrite:true, userCanWrite:true, busy:0, hold:0, heldSnap:null, dirsChain:Promise.resolve() };
 let fOpen = false, fMatches = [], fIdx = -1, fErr = '', qoItems = [], qoSel = 0;
 const fOpt = { cs:false, ww:false, re:false };
 const S = { cs:false, ww:false, re:false, showRep:false, results:[], total:0, limited:false, err:'', collapsed:new Set(), rx:null, timer:0 };
@@ -715,8 +715,10 @@ async function hold(fn){
   try { return await fn(); }
   finally { store.hold--; if (!store.hold && store.heldSnap) { const s = store.heldSnap; store.heldSnap = null; applyFiles(s); } }
 }
+let guardToastAt = 0;
 function reportErr(e){
   const c = e && e.code;
+  if (c === 'read_only' || c === 'not_ready') { if (Date.now() - guardToastAt < 3000) return; guardToastAt = Date.now(); }   // one message for many refused writes
   const msg = c === 'invalid_argument' ? 'The project refused the change. You may only have read access, or the file is too large.'
     : c === 'quota_exceeded' ? 'The project database is full: ' + (e.message || '') + ' Delete some files and try again.'
     : c === 'revoked' ? 'Access to the project ended. Reload the page.'
@@ -833,7 +835,8 @@ const nowIso = () => new Date().toISOString();
 // Increase it only with a migration that adds records or fields and keeps the old ones (no deletes).
 const DATA_SCHEMA = 1;
 // block: null = writes allowed, 'newer' = the data has a newer data model, 'unknown' = the version cannot be read.
-const schema = { known:false, block:null, writing:false };
+const schema = { known:false, block:null, writing:false, timer:0 };
+const SCHEMA_RETRY_MS = 5000;           // wait before the page listens to meta/schema again after an error
 // Every database write of the page goes through this wrapper, also writes of operations that started earlier.
 // It refuses writes until the page knows the data model version, and after the page found a reason to block.
 function guardDb(db){
@@ -1176,7 +1179,7 @@ async function start(){
   store.rawDb = db; store.db = guardDb(db); store.mode = 'db';
   try {
     const user = await window.claude.use('user');
-    if (user && typeof user.can === 'function') { const c = await user.can('data.write'); if (c === false) store.canWrite = false; }
+    if (user && typeof user.can === 'function') { const c = await user.can('data.write'); if (c === false) store.canWrite = store.userCanWrite = false; }
     if (user && typeof user.id === 'function') { const id = await user.id(); if (typeof id === 'string' && /^[A-Za-z0-9_.~:@+-]{1,200}$/.test(id)) me.uid = id; }
   } catch (e) {}
   treeNote = 'Loading project…'; renderTree(); renderStatus();
@@ -1246,9 +1249,17 @@ function blockWrites(kind, msg){
   toast(msg, 'err');
   render(); renderComments(); renderStatus();
 }
+// 'unknown' ends when a later snapshot gives a readable version 1. 'newer' stays until the page is reloaded.
+function unblockWrites(){
+  schema.block = null; store.canWrite = store.userCanWrite;
+  for (const p in tas) tas[p].readOnly = !store.canWrite;
+  toast('The data model version is readable again. You can save again.');
+  render(); renderComments(); renderStatus();
+}
 function onSchema(exists, d){
   if (exists) {
     const v = parseSchema((d || {}).version);
+    if (schema.block === 'unknown' && v !== null && v <= DATA_SCHEMA) unblockWrites();
     if (v === null) { blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data.'); return; }
     if (v > DATA_SCHEMA) { blockWrites('newer', `A newer version of Mini Code changed the project data (data model ${v}). This page can only read it. Update the page.`); return; }
   } else if (store.canWrite && !schema.writing) {
@@ -1265,14 +1276,17 @@ function onSchema(exists, d){
 }
 function watchSchema(){
   const ref = store.rawDb.doc('meta/schema');
+  if (!schema.timer && !schema.known) schema.timer = setTimeout(() => { if (!schema.known) toast('The project data model version cannot be read yet. You cannot save until it is read. The page keeps trying.', 'err'); }, LOAD_TIMEOUT_MS);
   ref.onSnapshot(s => {
     if (!s.exists && s.metadata && s.metadata.fromCache) {   // a cached "missing" can be stale: ask the server
-      ref.get().then(g => onSchema(g.exists, g.exists ? g.data() : null))
-        .catch(() => blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data. Reload the page.'));
+      withRetry(() => ref.get()).then(g => onSchema(g.exists, g.exists ? g.data() : null)).catch(() => {});   // else wait for the next snapshot
       return;
     }
     onSchema(s.exists, s.exists ? s.data() : null);
-  }, () => blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data. Reload the page.'));
+  }, () => {   // the listener ended: block writes, then listen again
+    blockWrites('unknown', 'The data model version of this project cannot be read. This page can only read the project data. The page keeps trying.');
+    setTimeout(watchSchema, SCHEMA_RETRY_MS);
+  });
 }
 function applyFiles(snap){
   if (store.hold) { store.heldSnap = snap; return; }
@@ -1308,6 +1322,7 @@ function replaceBuffer(p, text){
 function guardWrite(){
   if (store.mode === 'connecting') { toast('Still connecting to the project…'); return false; }
   if (store.mode === 'offline') { toast('The connection to the project was lost. Reload the page.', 'err'); return false; }
+  if (!store.userCanWrite) { toast('You can only read this project.', 'err'); return false; }
   if (store.mode === 'db' && !schema.known) { toast('Still connecting to the project…'); return false; }
   if (!store.canWrite) { toast(schema.block ? 'This page can only read the project data. Update the page to a newer version of Mini Code.' : 'You can only read this project.', 'err'); return false; }
   return true;
@@ -1438,10 +1453,14 @@ function renderTree(){
   if (h && pins.length) h = '<div class="pinhead">Pinned</div>' + pins.map(p => rowHtml(p, 0, 'f', true)).join('') + '<div class="pinsep"></div>' + h;
   $('#btnExplorer').classList.toggle('dot', anyNew);
   // A re-render removes the open name input. Its blur must not commit the name, and the typed text must stay.
-  const prev = tree.querySelector('input'), typed = prev ? prev.value : null;
+  // If the input is not drawn again (its file or folder is gone), the pending action ends without a commit.
+  const prev = tree.querySelector('input'), had = prev && document.activeElement === prev;
+  const keep = prev ? { v:prev.value, s:prev.selectionStart, e:prev.selectionEnd, d:prev.selectionDirection } : null;
   if (prev) prev.dataset.gone = '1';
   tree.innerHTML = h || `<div class="empty"><p>${esc(treeNote)}</p>${store.mode === 'connecting' ? '' : emptyActions()}</div>`;
-  const inp = tree.querySelector('input'); if (inp) { if (typed !== null) inp.value = typed; bindInput(inp); }
+  const inp = tree.querySelector('input');
+  if (inp) bindInput(inp, keep, !prev || had);
+  else if (prev && pending) { pending = null; renderTree(); }
 }
 function renderEditor(){
   const has = !!(active && tas[active]);
@@ -2076,9 +2095,11 @@ function validName(v, allowSlash){
   if (!v || v.includes('\\') || (!allowSlash && v.includes('/'))) return false;
   return v.split('/').every(s => s && s !== '.' && s !== '..');
 }
-function bindInput(inp){
-  inp.focus();
-  if (pending && pending.mode === 'rename') { const v = inp.value, dot = v.lastIndexOf('.'); inp.setSelectionRange(0, dot > 0 && !dirs.has(pending.path) ? dot : v.length); }
+// keep: value and selection of the input before a re-render. focus: false if the person works somewhere else.
+function bindInput(inp, keep, focus){
+  if (focus) inp.focus();
+  if (keep) { inp.value = keep.v; inp.setSelectionRange(keep.s, keep.e, keep.d); }
+  else if (pending && pending.mode === 'rename') { const v = inp.value, dot = v.lastIndexOf('.'); inp.setSelectionRange(0, dot > 0 && !dirs.has(pending.path) ? dot : v.length); }
   let done = false;
   const fin = ok => { if (done) return; done = true; if (ok) commitPending(inp.value); else { pending = null; renderTree(); tree.focus(); } };
   inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); fin(true); } else if (e.key === 'Escape') { e.preventDefault(); fin(false); } });
