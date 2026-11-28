@@ -18,7 +18,7 @@ All dates are in ISO 8601 (UTC).
 - The skill `mini-code` is a part of the jelk package. jelk installs and updates the page and the skill. The skill keeps `new`, `open` and `list`.
 - `/mini-code new` publishes the page of the skill's own version (the line `Jelk-package`), not the newest release. It sets the version label `jelk:mini-code@X.Y.Z`, so that jelk can update the artifact.
 - `/mini-code list` does not need GitHub. Its column "update available" now compares each artifact with the skill (older, same or newer).
-- README and `docs/skill.md`: the quick start installs the package with `/jelk install mini-code`. `docs/quick-start-prompt.md`: do not use the update prompt for artifacts that jelk manages.
+- README: the new section "Installation" has the ways "With jelk (recommended)" and "Manual installation", like mini-spice. The section "Skill for Claude" has the command reference. `docs/skill.md`: installation with `/jelk install mini-code`. `docs/quick-start-prompt.md`: do not use the update prompt for artifacts that jelk manages.
 - The update prompt reads `docs/data-notes.md`.
 
 ### Removed

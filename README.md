@@ -9,7 +9,7 @@ A small code editor in one HTML file. It looks and works like a simple version o
 You can use Mini Code in two modes:
 
 - **Browser-only mode.** Open `index.html` in a browser, or publish it with GitHub Pages. The files stay in the storage of your browser.
-- **Claude artifact mode.** Publish `index.html` as an artifact on claude.ai with a project database. Then Claude can read and write the same files, and you can add comments to code for Claude. Refer to [docs/claude-integration.md](docs/claude-integration.md).
+- **Claude artifact mode.** Publish `index.html` as an artifact on claude.ai with a project database. Then Claude can read and write the same files, and you can add comments to code for Claude. Refer to [Installation](#installation).
 
 ## Features
 
@@ -73,35 +73,79 @@ All screenshots show sample content. They were made automatically with a headles
 | ![Explorer with a pinned file, change markers, a lock icon and the menu with the path rules](docs/images/explorer-rules.png) | |
 | Dots mark changed files. The Explorer menu sets the path rules. | |
 
-## Quick start with Claude
+## Installation
 
-Mini Code is a package for the jelk package manager. jelk installs and updates the page and the Claude skill `mini-code` together. Type this in a chat with Claude that has the skill `jelk` (if you do not have it, install jelk first: refer to [github.com/canotir/jelk](https://github.com/canotir/jelk)):
+> [!TIP]
+> **Use jelk.** jelk installs the page and the skill together. It checks the release before it installs anything, and it keeps your files and comments when you update.
 
-```text
+### With jelk (recommended)
+
+[jelk](https://github.com/canotir/jelk) is a package manager for Claude. It runs as a skill in the chat. Type this in a chat on claude.ai:
+
+```
 /jelk install mini-code
 ```
 
-jelk shows the parts of the package and asks for your approval for each part. If you approve the page, jelk creates your first Mini Code artifact. To create more artifacts later, type `/mini-code new`.
+jelk does these steps for you:
 
-Without jelk, use the prompts in [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
+1. It finds the newest release in the jelk registry and shows you its license, capabilities and review date.
+2. It examines the release: the tag must point to the reviewed commit, and each file must have the reviewed SHA-256 hash.
+3. It asks for your approval of each part: the page (artifact) and the skill `/mini-code`.
+4. It asks for the name of the artifact, publishes the page and declares its database.
+5. It shows the skill as a card. Save the card to install the skill.
 
-To update all parts later, type `/jelk update mini-code`. Use only jelk for updates.
+To create more Mini Code artifacts later, type `/mini-code new`. Each artifact has its own files and comments.
 
-### Command reference
+Other jelk commands for Mini Code:
 
-| Command | Action |
+| Command | Function |
 |---|---|
-| `/mini-code new` | Create a new Mini Code artifact. Claude asks for its name, publishes the page of the installed version and gives you the link. Each artifact has its own files and comments. |
-| `/mini-code open` | Select one Mini Code artifact and continue to work with it in this chat. Claude reads the project rules and shows the open comments and the newest changeset. |
-| `/mini-code list` | Show all your Mini Code artifacts with name, version and the comparison with the skill (older, same or newer). Changes nothing. |
-| `/mini-code` | Ask which of the commands above you want. |
-| `/jelk update mini-code` | Update the skill and your Mini Code artifacts to a newer release. Each artifact keeps its link, name, files and comments. |
+| `/jelk update mini-code` | Update your Mini Code artifacts and the skill. Your files and comments stay. |
+| `/jelk list` | Show the installed packages, their versions and the available updates |
+| `/jelk open <artifact>` | Load the rules for Claude and continue the work in one artifact |
 
-The commands `/mini-code update` and `/mini-code update-skill` of version 0.6.0 are removed. They now tell you to use jelk.
+Use only jelk for updates. An update without jelk removes the jelk version label, and jelk then treats the artifact as "locally modified".
 
-For details and limits, refer to [docs/skill.md](docs/skill.md). For chats without skills, use the prompts in [docs/quick-start-prompt.md](docs/quick-start-prompt.md).
+> [!NOTE]
+> If you have the skill `mini-code` 0.6.0, it has no `Jelk-package` line. jelk warns about it during `/jelk install mini-code`. Select "Replace". Alternative: type `/mini-code update-skill` one time before you install with jelk.
 
-## Setup
+### Manual installation
+
+Use a release tag (`vX.Y.Z`), not a branch. The releases are on the [tags page](https://github.com/canotir/mini-code-editor/tags).
+
+**Way 1: install the skill, then let it publish the page.**
+
+1. Send this message to Claude in a chat on claude.ai. Replace `vX.Y.Z` with the newest release.
+
+   ```text
+   Clone the tag vX.Y.Z of https://github.com/canotir/mini-code-editor.
+   Read skills/mini-code/SKILL.md completely and propose it to me as the new skill "mini-code".
+   ```
+
+2. Examine the skill text on the card. Then save the card.
+3. Type `/mini-code new`. The skill asks for a name, publishes the page and declares its database.
+
+If your chat cannot show a skill card, download `skills/mini-code/SKILL.md` from the release and upload it in the skill settings of Claude.
+
+**Way 2: publish the page without the skill.**
+
+1. Send this message to Claude in a chat on claude.ai. Replace `vX.Y.Z` with the newest release.
+
+   ```text
+   Clone the tag vX.Y.Z of https://github.com/canotir/mini-code-editor.
+   Publish index.html without changes as a new artifact with the name "Mini Code".
+   Declare these capabilities for it:
+   {"db": {"rules": [{"path": "", "read": "view", "write": "owner"}]}, "user": {}}
+   Then read docs/claude-integration.md. Use it when I ask you to change the files.
+   ```
+
+2. Open the artifact. Select **Load the sample project**, **New file** or **Import folder**.
+
+**Manual update:** the skill does not update. Ask Claude to publish `index.html` of the new tag to your existing artifact. The database, your files and your comments stay. Read `CHANGELOG.md` and `docs/data-notes.md` of the new release first. [docs/quick-start-prompt.md](docs/quick-start-prompt.md) has ready-made prompts for setup and update.
+
+If the database is not available, the page starts in browser-only mode. The status bar then shows "Browser storage only". In this mode the files stay only in your browser, and Claude cannot read them.
+
+### Browser-only mode
 
 Mini Code has no dependencies and no build step.
 
@@ -113,6 +157,19 @@ To use GitHub Pages:
 1. In the repository settings, open **Pages**.
 2. Select the branch `main` and the folder `/ (root)`.
 3. Open the URL that GitHub shows.
+
+## Skill for Claude
+
+`skills/mini-code/SKILL.md` is the skill `/mini-code`. jelk installs and updates it together with the page. For details and limits, refer to [docs/skill.md](docs/skill.md).
+
+| Command | Function |
+|---|---|
+| `/mini-code new` | Publish a new Mini Code artifact from the release of the installed skill, with its database |
+| `/mini-code open` | Show the open comments and the newest changeset of one project and continue the work |
+| `/mini-code list` | List your Mini Code artifacts, their versions and the comparison with the skill (older, same or newer). Changes nothing |
+| `/mini-code` | Ask which of the commands above you want |
+
+The commands `/mini-code update` and `/mini-code update-skill` of version 0.6.0 no longer update. They tell you to use `/jelk update mini-code`. The skill uses only release tags (`vX.Y.Z`). `docs/claude-integration.md` tells Claude how to read and change a project.
 
 ## Use
 
